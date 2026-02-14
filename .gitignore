@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+.venv
+env/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Data directory (often large or contains raw data)
+data/
+
+# Generated Output Files (Backtest results, logs, etc.)
+# *.csv
+# backtest_summary.json
+# backtest_results.csv
+# diagnostic_expectancy.csv
+# entry_diagnostics.csv
+# equity_curve.csv
+# monte_carlo_dd.csv
+# trades_detailed.csv
+
+# OS generated files
+.DS_Store
+Thumbs.db

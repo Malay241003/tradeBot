@@ -1,0 +1,16 @@
+{
+  "name": "tradebot",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "bot/main.js",
+  "scripts": {
+    "start": "node bot/main.js",
+    "backtest": "node backtest/run.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
+    "technicalindicators": "^3.1.0",
+    "xlsx": "^0.18.5"
+  }
+}

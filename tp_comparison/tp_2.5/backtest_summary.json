@@ -1,0 +1,12 @@
+{
+  "trades": 989,
+  "winRate": "41.86",
+  "expectancy": "0.93",
+  "maxDrawdownR": "16.00",
+  "avgTimeInTradeBars": "53.0",
+  "wonTrades": 414,
+  "lostTrades": 575,
+  "totalProfit": "1498.13",
+  "totalLoss": "575.00",
+  "netProfit": "923.13"
+}
