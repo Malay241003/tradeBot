@@ -127,7 +127,7 @@ export async function backtestPair(pair, opts = {}) {
       // SL checked before TP — conservative assumption for short trades
       // ❌ STOP LOSS
       if (c.high >= sl) {
-        const R = -1;
+        const R = -positionR;
 
         trades.push({
           ...tradeContext,
