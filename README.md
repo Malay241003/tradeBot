@@ -1,14 +1,15 @@
 # 📈 TradeBot — Systematic Crypto Trading Engine
 
-A quantitative crypto trading bot and backtesting engine built in Node.js. Uses technical indicators on multi-timeframe candlestick data (15m, 1h, 4h) to generate short signals, with a full backtesting pipeline, walk-forward validation, Monte Carlo risk analysis, and fat-tail distribution analytics.
+A quantitative crypto trading bot and backtesting engine built in Node.js. Uses technical indicators on multi-timeframe candlestick data (15m, 1h, 4h) to generate short signals, with a full backtesting pipeline, walk-forward validation, institutional-grade Monte Carlo risk analysis, 5-year compounding projection, and fat-tail distribution analytics.
 
 **Key Features:**
 - Multi-pair universe (13 USDT pairs) with Binance data + CoinDCX execution compatibility
 - Full historical backtesting from 2018 to present
 - Walk-forward validation per pair (rolling window)
-- Monte Carlo drawdown simulation
+- Monte Carlo V2 risk engine (4 layers: IID, Block Bootstrap, Correlation-Preserving, Stress Injection)
+- 5-year compounding capital projection (3 scenarios × 5,000 simulations)
 - Fat-tail distribution analytics (MFE/MAE analysis, TP capture efficiency, bell curve overlays)
-- Jupyter notebook for visualization
+- Jupyter notebook for visualization (equity curves, MC fan charts, compounding projections)
 - CSV export for all results
 
 ---
@@ -36,7 +37,8 @@ tradeBot/
 │   ├── equityCurve.js      # Equity curve generation
 │   ├── walkForward.js      # Walk-forward validation engine
 │   ├── wfEvaluator.js      # Walk-forward verdict evaluator
-│   ├── monteCarloDD.js     # Monte Carlo drawdown simulation
+│   ├── monteCarloDD.js     # Monte Carlo drawdown simulation (legacy)
+│   ├── monteCarloV2.js     # MC V2 — 4-layer institutional risk engine + 5yr compounding
 │   ├── mcHistogram.js      # Monte Carlo histogram builder
 │   └── optimize_tp.js      # TP sensitivity analysis automation
 │
@@ -51,7 +53,9 @@ tradeBot/
 │   ├── tradingAnalytics.js # Fat-tail distribution analytics (MFE/MAE/kurtosis)
 │   ├── diagnosticExpectancy.js  # Diagnostic-expectancy correlation
 │   ├── trading_analysis.ipynb   # Jupyter notebook for graphs
-│   ├── add_analytics_cells.py   # Script to inject graph cells into notebook
+│   ├── add_analytics_cells.py   # Script to inject analytics cells into notebook
+│   ├── add_mc_charts.py         # MC V2 visualization cells (drawdown, fan charts)
+│   ├── add_compounding_charts.py # 5-year compounding projection charts
 │   └── add_bellcurve_cells.py   # Script to add bell curve overlays
 │
 ├── data/                   # Cached candle data (auto-generated, gitignored)
@@ -117,8 +121,10 @@ This will:
 2. Download/cache candle data from Binance (2018 → present)
 3. Run backtests across all pairs
 4. Run walk-forward validation per pair
-5. Run fat-tail distribution analytics
-6. Export all results as CSV files in the project root
+5. Run Monte Carlo V2 risk analysis (4-layer engine)
+6. Run 5-year compounding capital projection (3 scenarios × 5,000 sims)
+7. Run fat-tail distribution analytics
+8. Export all results as CSV/JSON files in the project root
 
 **First run takes a few minutes** to download candle data. Subsequent runs use the local cache in `data/`.
 
@@ -132,7 +138,10 @@ This will:
 | `equity_curve.csv` | Cumulative equity curve data |
 | `entry_diagnostics.csv` | Entry signal quality diagnostics |
 | `diagnostic_expectancy.csv` | Diagnostic–expectancy correlation per pair |
-| `monte_carlo_dd.csv` | Monte Carlo drawdown distribution |
+| `monte_carlo_dd.csv` | Monte Carlo drawdown distribution (legacy) |
+| `mc_v2_report.json` | MC V2 risk report (4 models: IID, Block, Corr, Stress) |
+| `mc_v2_comparison.csv` | MC V2 model comparison table |
+| `mc_compounding_report.json` | 5-year compounding projection (3 scenarios, equity paths) |
 | `trading_analytics.csv` | Fat-tail distribution stats (kurtosis, skewness, percentiles) |
 | `tp_efficiency.csv` | TP capture efficiency per pair |
 | `mae_survival.csv` | MAE survival analysis for winners |
@@ -169,6 +178,8 @@ The notebook reads all CSV files from the project root and generates:
 - MAE survival analysis
 - TP capture efficiency per pair
 - Excess kurtosis & skewness heatmaps
+- **MC V2**: Drawdown overlay, equity fan charts, risk comparison bars, stress survival heatmap
+- **5-Year Compounding**: Capital growth fan chart, final capital distribution, projection summary table
 
 ---
 

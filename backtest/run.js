@@ -2,6 +2,7 @@ import { buildUniverse } from "../bot/universe.js";
 import { backtestPair } from "./engine.js";
 import { computeMetrics } from "./metrics.js";
 import { monteCarloDrawdown } from "./monteCarloDD.js";
+import { runFullMCReport, runCompoundingMC } from "./monteCarloV2.js";
 import { buildHistogram } from "./mcHistogram.js";
 import { exportCSV, exportMCDDHistogram } from "./export.js";
 import { walkForward } from "./walkForward.js";
@@ -56,12 +57,19 @@ async function runBacktest() {
   exportEntryDiagnostics(fullResults);
   console.log("Entry diagnostics per pair exported ✔");
 
-  // 🎲 MONTE-CARLO DD (GLOBAL)
+  // 🎲 MONTE-CARLO DD (GLOBAL) — Legacy
   const dds = monteCarloDrawdown(allTrades);
   const hist = buildHistogram(dds, 1);
   exportMCDDHistogram(hist);
+  console.log("Monte-Carlo DD histogram (legacy) exported ✔");
 
-  console.log("Monte-Carlo DD histogram exported ✔");
+  // 🎲 MONTE-CARLO V2 — Institutional-Grade Risk Engine
+  const mcData = runFullMCReport(allTrades);
+  console.log("Monte-Carlo V2 report exported ✔");
+
+  // 💰 5-YEAR COMPOUNDING MC — Capital Projection
+  const compoundData = runCompoundingMC(allTrades);
+  console.log("Compounding MC report exported ✔");
 
   // 📈 EQUITY CURVE (GLOBAL)
   exportEquityCurve(allTrades);
