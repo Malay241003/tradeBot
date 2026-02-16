@@ -1,5 +1,5 @@
 Model,1pct_DD,5pct_DD,Median_DD,Median_Equity,5pct_Equity,Risk_of_Ruin
-IID Shuffle,23.75,20.00,13.75,1136.00,1136.00,0.00%
-Block Bootstrap,25.75,22.50,16.50,1117.50,946.50,0.00%
-Correl-Preserve,65.75,52.25,32.75,1129.25,787.50,0.04%
-Stress Injected,61.75,49.25,31.25,457.50,289.25,0.00%
+IID Shuffle,23.50,19.50,13.75,1136.00,1136.00,0.00%
+Block Bootstrap,26.00,22.50,16.50,1119.25,947.75,0.00%
+Correl-Preserve,65.00,52.00,32.75,1124.50,780.25,0.04%
+Stress Injected,75.00,58.75,36.75,411.75,230.75,0.07%

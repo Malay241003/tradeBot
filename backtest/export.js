@@ -130,7 +130,6 @@ export function exportTradesDetailed(trades) {
     "R",
     "DurationBars",
 
-    "BTC_OK",
     "VolExpansion",
     "FailedBounce",
     "Rejection",
@@ -150,7 +149,6 @@ export function exportTradesDetailed(trades) {
       t.R.toFixed(2),
       t.durationBars,
 
-      t.btcOk ? 1 : 0,
       t.volExpansion ? 1 : 0,
       t.failedBounce ? 1 : 0,
       t.rejection ? 1 : 0,

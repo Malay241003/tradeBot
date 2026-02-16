@@ -1,14 +1,5 @@
 // shared/entry.js
 
-// ================================
-// 1️⃣ BTC REGIME GATE
-// ================================
-export function btcRegimeOK(btc4h, btc1h, ind4h, ind1h) {
-  if (!btc4h || !btc1h || !ind4h || !ind1h) return false;
-
-  // BTC regime filter disabled — all trades allowed
-  return true;
-}
 
 // ================================
 // 2️⃣ VOLATILITY EXPANSION (1H)
