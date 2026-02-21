@@ -1,6 +1,6 @@
 import fs from "fs";
 
-export function exportEquityCurve(trades) {
+export function exportEquityCurve(trades, direction = "short") {
   let equity = 0;
 
   const rows = trades.map((t, i) => {
@@ -12,5 +12,5 @@ export function exportEquityCurve(trades) {
     "TradeNumber,EquityR\n" +
     rows.join("\n");
 
-  fs.writeFileSync("./equity_curve.csv", csv);
+  fs.writeFileSync(`./equity_curve_${direction}.csv`, csv);
 }

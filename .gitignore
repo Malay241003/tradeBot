@@ -21,15 +21,26 @@ env/
 data/
 
 # Generated Output Files (Backtest results, logs, etc.)
-# *.csv
-# backtest_summary.json
-# backtest_results.csv
-# diagnostic_expectancy.csv
-# entry_diagnostics.csv
-# equity_curve.csv
-# monte_carlo_dd.csv
-# trades_detailed.csv
+*.csv
+backtest_summary*.json
+prop_firm_report*.json
+mc_v2_report*.json
+mc_compounding_report*.json
+backtest_results*.csv
+diagnostic_expectancy*.csv
+entry_diagnostics*.csv
+equity_curve*.csv
+monte_carlo_dd*.csv
+trades_detailed*.csv
 
 # OS generated files
 .DS_Store
 Thumbs.db
+
+
+# Result directories
+results_*/
+
+# Archived/Temporary outputs
+_archive_root_outputs/
+tp_comparison/

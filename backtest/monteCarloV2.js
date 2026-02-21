@@ -187,7 +187,7 @@ export function iidShuffleMC(trades, runs = 5000) {
 // ORCHESTRATOR — FULL MC REPORT
 // ============================================================
 
-export function runFullMCReport(trades, capitalR = 200) {
+export function runFullMCReport(trades, capitalR = 200, direction = "short") {
     // capitalR = 10000 / 50 = 200R
     console.log("\n╔═══════════════════════════════════════════════════════════════╗");
     console.log("║          🎲  MONTE CARLO V2 — RISK REPORT                  ║");
@@ -264,7 +264,9 @@ export function runFullMCReport(trades, capitalR = 200) {
         }
     };
 
-    fs.writeFileSync("./mc_v2_report.json", JSON.stringify(mcData, null, 2));
+    const suffix = `_${direction}`;
+
+    fs.writeFileSync(`./mc_v2_report${suffix}.json`, JSON.stringify(mcData, null, 2));
 
     // ─── EXPORT COMPARISON CSV ───
     const csvHeader = "Model,1pct_DD,5pct_DD,Median_DD,Median_Equity,5pct_Equity,Risk_of_Ruin\n";
@@ -273,8 +275,8 @@ export function runFullMCReport(trades, capitalR = 200) {
         return `${m.name},${s.pct1DD.toFixed(2)},${s.pct5DD.toFixed(2)},${s.medianDD.toFixed(2)},${s.medianEquity.toFixed(2)},${s.pct5Equity.toFixed(2)},${s.riskOfRuin}`;
     }).join("\n");
 
-    fs.writeFileSync("./mc_v2_comparison.csv", csvHeader + csvRows);
-    console.log("\n  📁 Exported: mc_v2_report.json, mc_v2_comparison.csv");
+    fs.writeFileSync(`./mc_v2_comparison${suffix}.csv`, csvHeader + csvRows);
+    console.log(`\n  📁 Exported: mc_v2_report${suffix}.json, mc_v2_comparison${suffix}.csv`);
 
     // ─── CAPITAL RISK INTERPRETATION ───
     const worstDD_R = stressStats.pct1DD;
@@ -535,8 +537,11 @@ export function runCompoundingMC(trades, config = {}) {
         exportData.finalEquities[key] = allResults[scenario.name].map(r => r.finalEquity);
     }
 
-    fs.writeFileSync("./mc_compounding_report.json", JSON.stringify(exportData, null, 2));
-    console.log("\n  📁 Exported: mc_compounding_report.json");
+    const { direction = "short" } = config;
+    const suffix = `_${direction}`;
+
+    fs.writeFileSync(`./mc_compounding_report${suffix}.json`, JSON.stringify(exportData, null, 2));
+    console.log(`\n  📁 Exported: mc_compounding_report${suffix}.json`);
 
     return exportData;
 }

@@ -88,6 +88,29 @@ export function liquidationProxy(candles15m, i) {
 }
 
 // ==========================================
+// 🐂 BULLISH LIQUIDATION PROXY (LONG)
+// ==========================================
+export function bullishLiquidationProxy(candles15m, i) {
+  if (i < 2) return false;
+
+  const c = candles15m[i];
+  const p = candles15m[i - 1];
+
+  const rangeExpansion =
+    (c.high - c.low) >
+    1.8 * (p.high - p.low);
+
+  const volumeSpike =
+    c.volume > 2.5 * p.volume;
+
+  const strongBullClose =
+    c.close > c.open &&
+    (c.close - c.open) / (c.high - c.low) > 0.6;
+
+  return rangeExpansion && volumeSpike && strongBullClose;
+}
+
+// ==========================================
 function sumTopLevels(levels, depth) {
   return levels
     .slice(0, depth)

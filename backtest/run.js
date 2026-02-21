@@ -12,38 +12,129 @@ import { correlateDiagnosticsWithExpectancy } from "../analysis/diagnosticExpect
 import { runTradingAnalytics } from "../analysis/tradingAnalytics.js";
 import { exportEntryDiagnostics } from "./export.js";
 import { exportTradesDetailed } from "./export.js";
+import { exportDiagnosticExpectancy } from "./export.js";
+import { runPropFirmSimulation } from "./propFirmSim.js";
 
+// 🌎 MULTI-ASSET UNIVERSES
+import { FOREX_UNIVERSE } from "../bot/universes/forex.js";
+import { STOCKS_UNIVERSE } from "../bot/universes/stocks.js";
 
-import { exportDiagnosticExpectancy }
-  from "./export.js";
+import fs from "fs";
 
+// =======================================
+// CLI ARGUMENT PARSING
+// =======================================
+function parseArgs() {
+  const args = process.argv.slice(2);
+  let asset = "crypto"; // default
+  let direction = "short"; // default
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--asset" && args[i + 1]) {
+      asset = args[i + 1].toLowerCase();
+    }
+    if (args[i] === "--direction" && args[i + 1]) {
+      direction = args[i + 1].toLowerCase();
+    }
+  }
+
+  const validAssets = ["crypto", "forex", "stocks"];
+  if (!validAssets.includes(asset)) {
+    console.error(`❌ Invalid asset class: "${asset}". Valid: ${validAssets.join(", ")}`);
+    process.exit(1);
+  }
+
+  const validDirs = ["short", "long"];
+  if (!validDirs.includes(direction)) {
+    console.error(`❌ Invalid direction: "${direction}". Valid: short, long`);
+    process.exit(1);
+  }
+
+  return { asset, direction };
+}
+
+// =======================================
+// UNIVERSE BUILDER PER ASSET
+// =======================================
+async function getUniverse(assetClass) {
+  switch (assetClass) {
+    case "crypto":
+      return buildUniverse();
+
+    case "forex":
+      console.log(`[UNIVERSE] Forex — ${FOREX_UNIVERSE.length} pairs`);
+      return FOREX_UNIVERSE;
+
+    case "stocks":
+      console.log(`[UNIVERSE] US Stocks — ${STOCKS_UNIVERSE.length} symbols`);
+      return STOCKS_UNIVERSE;
+
+    default:
+      return [];
+  }
+}
+
+// =======================================
+// OUTPUT DIRECTORY PER ASSET
+// =======================================
+function getOutputDir(asset, direction) {
+  // User explicitly requested /results_long/ and /results_short/ separation
+  // For crypto (default), we follow this strict pattern.
+  // For others, we append direction to keep them distinct too.
+  if (asset === "crypto") {
+    const dir = `../results_${direction}`;
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+
+  // For other assets (stocks/forex), separate by both asset and direction
+  const dir = `../results_${asset}_${direction}`;
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+// =======================================
+// MAIN BACKTEST
+// =======================================
 async function runBacktest() {
-  const universe = await buildUniverse();
+  const { asset, direction } = parseArgs();
+  const outputDir = getOutputDir(asset, direction);
+
+  console.log(`\n╔══════════════════════════════════════════════════════╗`);
+  console.log(`║  📊  BACKTEST — ${asset.toUpperCase().padEnd(10)} ${direction.toUpperCase().padEnd(27)}║`);
+  console.log(`╚══════════════════════════════════════════════════════╝\n`);
+
+  const universe = await getUniverse(asset);
 
   let allTrades = [];
   let perPairStats = [];
   let fullResults = [];
 
-
   console.log("Universe:", universe);
 
-  // 🔁 BACKTEST EACH PAIR
+  // 🔁 BACKTEST EACH PAIR/SYMBOL
   for (const pair of universe) {
     console.log("Backtesting:", pair);
 
-    const result = await backtestPair(pair);
+    const result = await backtestPair(pair, {
+      assetClass: asset,
+      direction
+    });
     if (!result) continue;
 
     allTrades.push(...result.trades);
-    fullResults.push(result);
-
     perPairStats.push({
-      pair: result.pair,
+      pair,
       ...result.metrics
     });
+    fullResults.push(result);
 
     console.log("PAIR SUMMARY:", result.pair, result.metrics);
+  }
 
+  if (allTrades.length === 0) {
+    console.log("\n⚠️  No trades generated. Check data availability and signal parameters.");
+    return;
   }
 
   // 📊 GLOBAL METRICS
@@ -53,52 +144,68 @@ async function runBacktest() {
   console.log(globalMetrics);
 
   // 📁 EXPORT RESULTS
-  exportCSV(perPairStats, globalMetrics);
-  exportEntryDiagnostics(fullResults);
-  console.log("Entry diagnostics per pair exported ✔");
+  const origCwd = process.cwd();
+  if (outputDir !== ".") process.chdir(outputDir);
+
+  exportCSV(perPairStats, globalMetrics, direction);
+  exportEntryDiagnostics(fullResults, direction);
+  console.log(`Entry diagnostics per pair exported (${direction}) ✔`);
 
   // 🎲 MONTE-CARLO DD (GLOBAL) — Legacy
   const dds = monteCarloDrawdown(allTrades);
   const hist = buildHistogram(dds, 1);
-  exportMCDDHistogram(hist);
+  exportMCDDHistogram(hist, direction);
   console.log("Monte-Carlo DD histogram (legacy) exported ✔");
 
   // 🎲 MONTE-CARLO V2 — Institutional-Grade Risk Engine
-  const mcData = runFullMCReport(allTrades);
+  const mcData = runFullMCReport(allTrades, 200, direction);
   console.log("Monte-Carlo V2 report exported ✔");
 
   // 💰 5-YEAR COMPOUNDING MC — Capital Projection
-  const compoundData = runCompoundingMC(allTrades);
+  const compoundData = runCompoundingMC(allTrades, { direction });
   console.log("Compounding MC report exported ✔");
 
+  // 🏦 PROP FIRM CHALLENGE SIMULATOR (FUNDING PIPS)
+  const propFirmData = runPropFirmSimulation(allTrades, {}, direction);
+  console.log("Prop Firm Simulation report exported ✔\n");
+
   // 📈 EQUITY CURVE (GLOBAL)
-  exportEquityCurve(allTrades);
+  exportEquityCurve(allTrades, direction);
   console.log("Equity Curve exported ✔");
 
-  exportTradesDetailed(allTrades);
-  console.log("Equity TradesDetailed exported ✔");
+  exportTradesDetailed(allTrades, direction);
+  console.log("Trades Detailed exported ✔");
 
-  // 🔁 WALK-FORWARD (PER PAIR)
-  console.log("\n===== WALK-FORWARD VALIDATION =====");
+  // 📊 TRADING ANALYTICS (Jupyter/Python style stats)
+  runTradingAnalytics(allTrades, direction);
 
-  for (const pair of universe) {
-    const wf = await walkForward(pair);
-    const verdict = evaluateWF(wf);
+  if (outputDir !== ".") process.chdir(origCwd);
 
-    console.log(`WF RESULT (${pair}):`, wf.metrics);
-    console.log(`WF VERDICT (${pair}):`, verdict);
+  // 🔁 WALK-FORWARD (PER PAIR) — only for crypto (needs getBinanceCandles in walkForward.js)
+  if (asset === "crypto") {
+    console.log("\n===== WALK-FORWARD VALIDATION =====");
+
+    for (const pair of universe) {
+      const wf = await walkForward(pair, { direction });
+      const verdict = evaluateWF(wf);
+
+      console.log(`WF RESULT (${pair}):`, wf.metrics);
+      console.log(`WF VERDICT (${pair}):`, verdict);
+    }
+
+    const diagnosticRows =
+      correlateDiagnosticsWithExpectancy(fullResults);
+
+    // We can export this too if needed, typically correlates to `diagnostic_expectancy.csv`
+    // exportDiagnosticExpectancy(diagnosticRows, direction); // Check if available
+    if (outputDir !== ".") process.chdir(outputDir);
+    exportDiagnosticExpectancy(diagnosticRows, direction);
+    if (outputDir !== ".") process.chdir(origCwd);
+
+    console.log("Diagnostic–Expectancy correlation exported ✔");
   }
 
-
-  const diagnosticRows =
-    correlateDiagnosticsWithExpectancy(fullResults);
-
-  exportDiagnosticExpectancy(diagnosticRows);
-
-  console.log("Diagnostic–Expectancy correlation exported ✔");
-
-  // 📊 TRADING DISTRIBUTION ANALYTICS
-  runTradingAnalytics(allTrades);
+  console.log(`\n✅ ${asset.toUpperCase()} backtest complete. Results in: ${outputDir === "." ? "project root" : outputDir}`);
 }
 
 runBacktest();

@@ -4,13 +4,15 @@ A quantitative crypto trading bot and backtesting engine built in Node.js. Uses 
 
 **Key Features:**
 - Multi-pair universe (13 USDT pairs) with Binance data + CoinDCX execution compatibility
-- Full historical backtesting from 2018 to present
-- Walk-forward validation per pair (rolling window)
+- Full historical backtesting from 2018 to present with explicit institutional-grade friction (spread, slippage, tier-specific funding fees)
+- Walk-forward validation per pair (rolling window) out-of-sample testing
+- Directional Strategy Separation (decoupled Long & Short Take Profit logic and separated metrics directories)
+- Prop Firm Simulator (Simulates Phase 1 Challenge with $10k funding parameter constraints)
 - Monte Carlo V2 risk engine (4 layers: IID, Block Bootstrap, Correlation-Preserving, Stress Injection)
 - 5-year compounding capital projection (3 scenarios × 5,000 simulations)
 - Fat-tail distribution analytics (MFE/MAE analysis, TP capture efficiency, bell curve overlays)
-- Jupyter notebook for visualization (equity curves, MC fan charts, compounding projections)
-- CSV export for all results
+- Jupyter notebooks for visualization (equity curves, MC fan charts, compounding projections) split cleanly for Longs and Shorts
+- CSV export for all results into separated directories
 
 ---
 
@@ -18,50 +20,28 @@ A quantitative crypto trading bot and backtesting engine built in Node.js. Uses 
 
 ```
 tradeBot/
-├── bot/                    # Live trading module
-│   ├── main.js             # Entry point for live trading
-│   ├── binance.js          # Binance API — candle fetching + caching
-│   ├── coindcx.js          # CoinDCX API integration
-│   ├── universe.js         # Builds tradable pair universe (Binance ∩ CoinDCX)
-│   ├── config.js           # Bot-specific config
-│   ├── fetcher.js          # Data fetcher utilities
-│   ├── execute.js          # Order execution
-│   └── logger.js           # Logging utility
-│
+├── bot/                    # Live trading module (Data APIs, Universe builder)
 ├── backtest/               # Backtesting engine
 │   ├── run.js              # Main backtest runner (entry point)
-│   ├── config.js           # Backtest config (capital, TP_R, fees, etc.)
-│   ├── engine.js           # Core backtesting engine (signal → trade simulation)
-│   ├── metrics.js          # Performance metrics (win rate, expectancy, drawdown)
-│   ├── export.js           # CSV export for results
-│   ├── equityCurve.js      # Equity curve generation
+│   ├── config.js           # Backtest config (capital, TP_R, fees, direction settings)
+│   ├── engine.js           # Core backtesting engine (signal → trade simulation + friction math)
+│   ├── propFirmSim.js      # Prop Firm Challenge Simulator (Daily/Max DD caps, weekend bans)
 │   ├── walkForward.js      # Walk-forward validation engine
-│   ├── wfEvaluator.js      # Walk-forward verdict evaluator
-│   ├── monteCarloDD.js     # Monte Carlo drawdown simulation (legacy)
-│   ├── monteCarloV2.js     # MC V2 — 4-layer institutional risk engine + 5yr compounding
-│   ├── mcHistogram.js      # Monte Carlo histogram builder
-│   └── optimize_tp.js      # TP sensitivity analysis automation
+│   └── (..other engines)   # MC, Equity curves, Export pipelines
 │
 ├── shared/                 # Shared strategy logic
-│   ├── entry.js            # Entry signal logic
-│   ├── entryDiagnostics.js # Entry quality diagnostics
-│   ├── precomputeIndicators.js  # Technical indicator pre-computation
-│   ├── orderBookTrigger.js # Order book trigger logic
-│   └── utils.js            # Utility functions
+│   ├── entry.js            # Entry signal logic (Volatility, Rejection, Failures)
+│   └── (..other logic)
 │
 ├── analysis/               # Analytics & visualization
-│   ├── tradingAnalytics.js # Fat-tail distribution analytics (MFE/MAE/kurtosis)
-│   ├── diagnosticExpectancy.js  # Diagnostic-expectancy correlation
-│   ├── trading_analysis.ipynb   # Jupyter notebook for graphs
-│   ├── add_analytics_cells.py   # Script to inject analytics cells into notebook
-│   ├── add_mc_charts.py         # MC V2 visualization cells (drawdown, fan charts)
-│   ├── add_compounding_charts.py # 5-year compounding projection charts
-│   └── add_bellcurve_cells.py   # Script to add bell curve overlays
+│   ├── tradingAnalytics.js # Fat-tail distribution analytics
+│   ├── trading_analysis_long.ipynb  # Jupyter notebook for LONG strategy visualization
+│   └── trading_analysis_short.ipynb # Jupyter notebook for SHORT strategy visualization
 │
 ├── data/                   # Cached candle data (auto-generated, gitignored)
-├── tp_comparison/          # TP sensitivity analysis results
-├── package.json
-└── .gitignore
+├── results_long/           # Output directory for all Long backtest JSON/CSVs
+├── results_short/          # Output directory for all Short backtest JSON/CSVs
+└── .env                    # Secrets for live execution (Ignored in backtesting)
 ```
 
 ---
@@ -128,23 +108,23 @@ This will:
 
 **First run takes a few minutes** to download candle data. Subsequent runs use the local cache in `data/`.
 
-### Output Files
+### Output Files (`results_long/` & `results_short/`)
 
 | File | Description |
 |------|-------------|
-| `backtest_summary.json` | Global backtest metrics (trades, win rate, expectancy, etc.) |
-| `backtest_results.csv` | Per-pair performance summary |
-| `trades_detailed.csv` | Every individual trade with entry/exit/R/MFE/MAE |
-| `equity_curve.csv` | Cumulative equity curve data |
-| `entry_diagnostics.csv` | Entry signal quality diagnostics |
-| `diagnostic_expectancy.csv` | Diagnostic–expectancy correlation per pair |
-| `monte_carlo_dd.csv` | Monte Carlo drawdown distribution (legacy) |
-| `mc_v2_report.json` | MC V2 risk report (4 models: IID, Block, Corr, Stress) |
-| `mc_v2_comparison.csv` | MC V2 model comparison table |
-| `mc_compounding_report.json` | 5-year compounding projection (3 scenarios, equity paths) |
-| `trading_analytics.csv` | Fat-tail distribution stats (kurtosis, skewness, percentiles) |
-| `tp_efficiency.csv` | TP capture efficiency per pair |
-| `mae_survival.csv` | MAE survival analysis for winners |
+| `backtest_summary_{dir}.json` | Global backtest metrics (trades, win rate, expectancy, etc.) |
+| `backtest_results_{dir}.csv` | Per-pair performance summary |
+| `trades_detailed_{dir}.csv` | Every individual trade with entry/exit/R/MFE/MAE and explicit friction math |
+| `equity_curve_{dir}.csv` | Cumulative equity curve data (Both Gross R and Net R) |
+| `entry_diagnostics_{dir}.csv` | Entry signal quality diagnostics |
+| `diagnostic_expectancy_{dir}.csv` | Diagnostic–expectancy correlation per pair |
+| `prop_firm_report_{dir}.json` | Simulated Prop Firm Phase 1 run logic constraints and pass rate |
+| `mc_v2_report_{dir}.json` | MC V2 risk report (4 models: IID, Block, Corr, Stress) |
+| `mc_v2_comparison_{dir}.csv` | MC V2 model comparison table |
+| `mc_compounding_report_{dir}.json` | 5-year compounding projection (3 scenarios, equity paths) |
+| `trading_analytics_{dir}.csv` | Fat-tail distribution stats (kurtosis, skewness, percentiles) |
+| `tp_efficiency_{dir}.csv` | TP capture efficiency per pair |
+| `mae_survival_{dir}.csv` | MAE survival analysis for winners |
 
 ### Run Live Trading Bot
 
@@ -168,16 +148,17 @@ pip install jupyter pandas matplotlib seaborn numpy scipy
 
 ```bash
 cd analysis
-jupyter notebook trading_analysis.ipynb
+jupyter notebook trading_analysis_long.ipynb  # Or trading_analysis_short.ipynb
 ```
 
-The notebook reads all CSV files from the project root and generates:
-- Equity curve charts
+The notebooks read all CSV/JSON files from their respective `results_` directories and generate:
+- Equity curve charts (Comparing Gross R vs institutional friction Net R)
 - R / MFE / MAE distribution histograms with bell curve overlays
 - MFE vs Actual R scatter plots
 - MAE survival analysis
 - TP capture efficiency per pair
 - Excess kurtosis & skewness heatmaps
+- **Prop Firm Sim**: Expected Pass Rates, Leverage Draw-downs, Time limit statistics
 - **MC V2**: Drawdown overlay, equity fan charts, risk comparison bars, stress survival heatmap
 - **5-Year Compounding**: Capital growth fan chart, final capital distribution, projection summary table
 

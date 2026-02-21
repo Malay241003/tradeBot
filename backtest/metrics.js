@@ -51,6 +51,36 @@ export function computeMetrics(trades) {
 
   const lostTrades = trades.filter(t => t.R < 0).length;
 
+  // Calculate Distribution
+  const winDistMap = {};
+  const lossDistMap = {};
+
+  for (const t of trades) {
+    if (t.R === 0) continue;
+
+    // Group distribution by Gross Price Action R (ignoring fees/slippage for the bucket)
+    const displayR = t.grossR !== undefined ? t.grossR : t.R;
+    const roundedR = displayR > 0 ? `+${(Math.round(displayR * 100) / 100).toFixed(2)}` : (Math.round(displayR * 100) / 100).toFixed(2);
+
+    if (t.R > 0) {
+      winDistMap[`${roundedR}R`] = (winDistMap[`${roundedR}R`] || 0) + 1;
+    } else if (t.R < 0) {
+      lossDistMap[`${roundedR}R`] = (lossDistMap[`${roundedR}R`] || 0) + 1;
+    }
+  }
+
+  const winDistribution = {};
+  for (const [rVal, count] of Object.entries(winDistMap).sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]))) {
+    const pct = wins.length > 0 ? ((count / wins.length) * 100).toFixed(2) : "0.00";
+    winDistribution[rVal] = `${count} (${pct}%)`;
+  }
+
+  const lossDistribution = {};
+  for (const [rVal, count] of Object.entries(lossDistMap).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))) {
+    const pct = lostTrades > 0 ? ((count / lostTrades) * 100).toFixed(2) : "0.00";
+    lossDistribution[rVal] = `${count} (${pct}%)`;
+  }
+
   return {
     trades: trades.length,
     winRate: (winRate * 100).toFixed(2),
@@ -63,6 +93,8 @@ export function computeMetrics(trades) {
     lostTrades: lostTrades,
     totalProfit: totalProfit.toFixed(2),
     totalLoss: totalLossAbs.toFixed(2),
-    netProfit: equity.toFixed(2)
+    netProfit: equity.toFixed(2),
+    winDistribution,
+    lossDistribution
   };
 }

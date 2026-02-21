@@ -15,7 +15,8 @@ import { computeMetrics } from "./metrics.js";
  *
  * Windows advance by testBars (non-overlapping test periods).
  */
-export async function walkForward(pair, monthsTrain = 6, monthsTest = 3) {
+export async function walkForward(pair, opts = {}) {
+  const { monthsTrain = 6, monthsTest = 3, direction = "short" } = opts;
   const symbol = toBinanceSymbol(pair);
 
   // Fetch all data once (cached on disk)
@@ -68,7 +69,8 @@ export async function walkForward(pair, monthsTrain = 6, monthsTest = 3) {
       candles1h: slice1h,
       btc1h: sliceBtc1h,
       btc4h: sliceBtc4h,
-      startOffset: trainBars
+      startOffset: trainBars,
+      direction
     });
 
     if (!result || result.trades.length === 0) continue;

@@ -1,5 +1,5 @@
 import fs from "fs";
-import { CONFIG } from "../backtest/config.js";
+import { CONFIG, DIRECTION_CONFIGS } from "../backtest/config.js";
 
 // ============================================================
 //  PURE-JS STAT HELPERS  (no external deps)
@@ -226,56 +226,6 @@ function fmt(v) {
     return String(v);
 }
 
-function exportAnalyticsSummary(rows) {
-    const keys = [
-        "Scope", "N", "Mean", "Median", "StdDev", "Min", "Max",
-        "Skewness", "ExcessKurtosis", "JarqueBera", "FatTailed", "Normal",
-        "P5", "P10", "P25", "P50", "P75", "P90", "P95"
-    ];
-    const header = keys.join(",");
-    const body = rows.map(r =>
-        [
-            r.scope, r.n, fmt(r.mean), fmt(r.median), fmt(r.stddev),
-            fmt(r.min), fmt(r.max), fmt(r.skewness), fmt(r.excessKurtosis),
-            fmt(r.jarqueBera), fmt(r.isFatTailed), fmt(r.isNormal),
-            fmt(r.P5), fmt(r.P10), fmt(r.P25), fmt(r.P50),
-            fmt(r.P75), fmt(r.P90), fmt(r.P95)
-        ].join(",")
-    ).join("\n");
-
-    fs.writeFileSync("./trading_analytics.csv", header + "\n" + body);
-}
-
-function exportTPEfficiency(globalEff, perPairEff, tpR) {
-    const header = [
-        "Scope", "TP_R", "AvgCapture", "MedianCapture",
-        "LeftOnTableAvgR", "LeftOnTableCount", "LeftOnTablePct",
-        "WinnersAboveTPx2", "WinnersAboveTPx2Pct"
-    ].join(",");
-
-    const row = (scope, e) => [
-        scope, tpR,
-        fmt(e.avgCapture), fmt(e.medianCapture),
-        fmt(e.leftOnTableAvgR), e.leftOnTableCount, fmt(e.leftOnTablePct),
-        e.winnersAboveTPx2, fmt(e.winnersAboveTPx2Pct)
-    ].join(",");
-
-    const rows = [row("GLOBAL", globalEff)];
-    for (const [pair, eff] of perPairEff) {
-        rows.push(row(pair, eff));
-    }
-
-    fs.writeFileSync("./tp_efficiency.csv", header + "\n" + rows.join("\n"));
-}
-
-function exportMAESurvival(survival) {
-    const header = "MAE_Threshold_R,WinnersDipped,PctOfWinners";
-    const body = survival.map(s =>
-        `${s.maeThreshold},${s.winnersDipped},${fmt(s.pctOfWinners)}`
-    ).join("\n");
-
-    fs.writeFileSync("./mae_survival.csv", header + "\n" + body);
-}
 
 // ============================================================
 //  CONSOLE SUMMARY
@@ -311,13 +261,13 @@ function printSummary(stats, tpEff, tailR, survival, tpR) {
 //  MAIN ENTRY POINT
 // ============================================================
 
-export function runTradingAnalytics(trades) {
+export function runTradingAnalytics(trades, direction = "short") {
     if (!trades.length) {
         console.log("[ANALYTICS] No trades to analyse.");
         return;
     }
 
-    const tpR = CONFIG.TP_R;
+    const tpR = (DIRECTION_CONFIGS && DIRECTION_CONFIGS[direction]?.TP_R) || CONFIG.TP_R || 3.0;
 
     // ── Global distribution stats ──────────────────────────────
     const rValues = trades.map(t => t.R);
@@ -356,12 +306,63 @@ export function runTradingAnalytics(trades) {
     const hist = rHistogram(trades);
 
     // ── Console output ─────────────────────────────────────────
-    printSummary([globalR, globalMFE, globalMAE], globalTPEff, tailR, survival, tpR);
+    printSummary(summaryRows, globalTPEff, tailR, survival, tpR);
 
     // ── CSV exports ────────────────────────────────────────────
-    exportAnalyticsSummary(summaryRows);
-    exportTPEfficiency(globalTPEff, perPairTPEff, tpR);
-    exportMAESurvival(survival);
+    exportAnalyticsSummary(summaryRows, direction);
+    exportTPEfficiency(globalTPEff, perPairTPEff, tpR, direction);
+    exportMAESurvival(survival, direction);
 
-    console.log("[ANALYTICS] Exported: trading_analytics.csv, tp_efficiency.csv, mae_survival.csv ✔");
+    console.log(`[ANALYTICS] Exported: trading_analytics_${direction}.csv, tp_efficiency_${direction}.csv, mae_survival_${direction}.csv ✔`);
+}
+
+function exportAnalyticsSummary(rows, direction = "short") {
+    const keys = [
+        "Scope", "N", "Mean", "Median", "StdDev", "Min", "Max",
+        "Skewness", "ExcessKurtosis", "JarqueBera", "FatTailed", "Normal",
+        "P5", "P10", "P25", "P50", "P75", "P90", "P95"
+    ];
+    const header = keys.join(",");
+    const body = rows.map(r =>
+        [
+            r.scope, r.n, fmt(r.mean), fmt(r.median), fmt(r.stddev),
+            fmt(r.min), fmt(r.max), fmt(r.skewness), fmt(r.excessKurtosis),
+            fmt(r.jarqueBera), fmt(r.isFatTailed), fmt(r.isNormal),
+            fmt(r.P5), fmt(r.P10), fmt(r.P25), fmt(r.P50),
+            fmt(r.P75), fmt(r.P90), fmt(r.P95)
+        ].join(",")
+    ).join("\n");
+
+    fs.writeFileSync(`./trading_analytics_${direction}.csv`, header + "\n" + body);
+}
+
+function exportTPEfficiency(globalEff, perPairEff, tpR, direction = "short") {
+    const header = [
+        "Scope", "TP_R", "AvgCapture", "MedianCapture",
+        "LeftOnTableAvgR", "LeftOnTableCount", "LeftOnTablePct",
+        "WinnersAboveTPx2", "WinnersAboveTPx2Pct"
+    ].join(",");
+
+    const row = (scope, e) => [
+        scope, tpR,
+        fmt(e.avgCapture), fmt(e.medianCapture),
+        fmt(e.leftOnTableAvgR), e.leftOnTableCount, fmt(e.leftOnTablePct),
+        e.winnersAboveTPx2, fmt(e.winnersAboveTPx2Pct)
+    ].join(",");
+
+    const rows = [row("GLOBAL", globalEff)];
+    for (const [pair, eff] of perPairEff) {
+        rows.push(row(pair, eff));
+    }
+
+    fs.writeFileSync(`./tp_efficiency_${direction}.csv`, header + "\n" + rows.join("\n"));
+}
+
+function exportMAESurvival(survival, direction = "short") {
+    const header = "MAE_Threshold_R,WinnersDipped,PctOfWinners";
+    const body = survival.map(s =>
+        `${s.maeThreshold},${s.winnersDipped},${fmt(s.pctOfWinners)}`
+    ).join("\n");
+
+    fs.writeFileSync(`./mae_survival_${direction}.csv`, header + "\n" + body);
 }
