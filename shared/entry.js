@@ -1,10 +1,9 @@
 // shared/entry.js
 
-
 // ================================
 // 2️⃣ VOLATILITY EXPANSION (1H)
 // ================================
-export function volatilityExpansion(candles1h, ind1hArr, i, assetClass = "crypto") {
+export function volatilityExpansion(candles1h, ind1hArr, i, assetClass = "crypto", opts = {}) {
   if (i < 50) return false;
 
   const isStock = assetClass === "stocks";
@@ -32,11 +31,11 @@ export function volatilityExpansion(candles1h, ind1hArr, i, assetClass = "crypto
 // ================================
 // 3️⃣ FAILED BOUNCE (15m)
 // ================================
-export function failedBounce15m(candles15m, ind15mArr, i, assetClass = "crypto") {
+export function failedBounce15m(candles15m, ind15mArr, i, assetClass = "crypto", opts = {}) {
   if (i < 5) return false;
 
   const isStock = assetClass === "stocks";
-  const impulseMult = isStock ? 0.8 : 1.2;
+  const impulseMult = opts.IMPULSE_MULT !== undefined ? opts.IMPULSE_MULT : (isStock ? 0.8 : 1.2);
 
   const drop = candles15m[i - 4];
   const bounce = candles15m[i - 1];
@@ -45,11 +44,12 @@ export function failedBounce15m(candles15m, ind15mArr, i, assetClass = "crypto")
   const dropImpulse =
     (drop.open - drop.low) >= impulseMult * dropATR;
 
+  const pullbackEma = opts.PULLBACK_EMA || 'ema50';
   const weakBounce =
-    bounce.high <= ind15mArr[i - 1].ema50;
+    bounce.high <= ind15mArr[i - 1][pullbackEma];
 
   const volumeFail =
-    bounce.volume < 0.7 * drop.volume;
+    bounce.volume < (opts.VOL_FAIL_MULT !== undefined ? opts.VOL_FAIL_MULT : 0.7) * drop.volume;
 
   return dropImpulse && weakBounce && volumeFail;
 }
@@ -57,11 +57,11 @@ export function failedBounce15m(candles15m, ind15mArr, i, assetClass = "crypto")
 // ================================
 // 4️⃣ REJECTION → BREAKDOWN TRIGGER
 // ================================
-export function rejectionBreakdown(candles15m, i, assetClass = "crypto") {
+export function rejectionBreakdown(candles15m, i, assetClass = "crypto", opts = {}) {
   if (i < 2) return false;
 
   const isStock = assetClass === "stocks";
-  const wickMult = isStock ? 0.45 : 0.6;
+  const wickMult = opts.WICK_MULT !== undefined ? opts.WICK_MULT : (isStock ? 0.45 : 0.6);
 
   const reject = candles15m[i - 1];
   const next = candles15m[i];
@@ -84,19 +84,20 @@ export function rejectionBreakdown(candles15m, i, assetClass = "crypto") {
 // ================================
 // 5️⃣ STOP CALCULATION
 // ================================
-export function calcSurvivalSL(candles15m, ind15mArr, i) {
+export function calcSurvivalSL(candles15m, ind15mArr, i, opts = {}) {
   const bounceHigh = candles15m[i - 1].high;
-  return bounceHigh + 0.25 * ind15mArr[i].atr;
+  const slBuffer = opts.SL_ATR_BUFFER !== undefined ? opts.SL_ATR_BUFFER : 0.25;
+  return bounceHigh + slBuffer * ind15mArr[i].atr;
 }
 
 // ================================
 // 6️⃣ [LONG] FAILED PULLBACK (15m)
 // ================================
-export function failedPullback15m(candles15m, ind15mArr, i, assetClass = "crypto") {
+export function failedPullback15m(candles15m, ind15mArr, i, assetClass = "crypto", opts = {}) {
   if (i < 5) return false;
 
   const isStock = assetClass === "stocks";
-  const impulseMult = isStock ? 0.8 : 1.2;
+  const impulseMult = opts.IMPULSE_MULT !== undefined ? opts.IMPULSE_MULT : (isStock ? 0.8 : 1.2);
 
   const rally = candles15m[i - 4];
   const pullback = candles15m[i - 1];
@@ -107,12 +108,13 @@ export function failedPullback15m(candles15m, ind15mArr, i, assetClass = "crypto
     (rally.high - rally.open) >= impulseMult * rallyATR;
 
   // 2. Weak Pullback (Low stays ABOVE EMA50)
+  const pullbackEma = opts.PULLBACK_EMA || 'ema50';
   const weakPullback =
-    pullback.low >= ind15mArr[i - 1].ema50;
+    pullback.low >= ind15mArr[i - 1][pullbackEma];
 
   // 3. Volume Drying Up
   const volumeFail =
-    pullback.volume < 0.7 * rally.volume;
+    pullback.volume < (opts.VOL_FAIL_MULT !== undefined ? opts.VOL_FAIL_MULT : 0.7) * rally.volume;
 
   return rallyImpulse && weakPullback && volumeFail;
 }
@@ -120,11 +122,11 @@ export function failedPullback15m(candles15m, ind15mArr, i, assetClass = "crypto
 // ================================
 // 7️⃣ [LONG] REJECTION → BREAKOUT
 // ================================
-export function rejectionBreakout(candles15m, i, assetClass = "crypto") {
+export function rejectionBreakout(candles15m, i, assetClass = "crypto", opts = {}) {
   if (i < 2) return false;
 
   const isStock = assetClass === "stocks";
-  const wickMult = isStock ? 0.45 : 0.6;
+  const wickMult = opts.WICK_MULT !== undefined ? opts.WICK_MULT : (isStock ? 0.45 : 0.6);
 
   const reject = candles15m[i - 1];
   const next = candles15m[i];
@@ -149,10 +151,12 @@ export function rejectionBreakout(candles15m, i, assetClass = "crypto") {
 // ================================
 // 8️⃣ [LONG] STOP CALCULATION
 // ================================
-export function calcLongSL(candles15m, ind15mArr, i) {
+export function calcLongSL(candles15m, ind15mArr, i, opts = {}) {
   const pullbackLow = candles15m[i - 1].low;
-  return pullbackLow - 0.25 * ind15mArr[i].atr;
+  const slBuffer = opts.SL_ATR_BUFFER !== undefined ? opts.SL_ATR_BUFFER : 0.25;
+  return pullbackLow - slBuffer * ind15mArr[i].atr;
 }
+
 
 
 

@@ -4,6 +4,8 @@ export function initEntryDiagnostics() {
   return {
     totalBars: 0,
 
+    regimeBlocked: 0,
+    adxBlocked: 0,
     btcBlocked: 0,
     volBlocked: 0,
     bounceBlocked: 0,
@@ -18,10 +20,10 @@ export function initEntryDiagnostics() {
 }
 
 export function recordTrade(diag, R) {
-      if (!diag) return;
-      diag.trades++;
-      diag.sumR += R;
-    }
+  if (!diag) return;
+  diag.trades++;
+  diag.sumR += R;
+}
 
 
 export function recordBlock(diag, reason) {

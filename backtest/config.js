@@ -6,16 +6,17 @@ export const CONFIG = {
   MIN_HISTORY_15M: 1000,
   MIN_HISTORY_1H: 200,
   // CoinDCX Futures (USDT-M) fee structure
-  // Regular 1: Maker 0.02%, Taker 0.05%
-  // 18% GST applicable on fees
-  // Round-trip Taker (Regular 1): (0.05% * 2) * 1.18 = 0.118%
   FEE_PCT: 0.00118,
+  SPREAD_PCT: 0.0010,       // 0.10%
+  SLIPPAGE_PCT: 0.0008,     // 0.08%
+  FUNDING_PER_8H: 0.0001,   // 0.01%
+  MIN_SL_PCT: 0.0030,       // 0.30% min stop loss distance
+  MAX_BARS_IN_TRADE: 672,   // 7 days (96 bars/day)
 
-  SPREAD_PCT: 0.0010,  // 0.10%
-  SLIPPAGE_PCT: 0.0008,  // 0.08%
-  FUNDING_PER_8H: 0.0001, // 0.01%
-  MIN_SL_PCT: 0.0030, // 0.30% min stop loss distance
-  MAX_BARS_IN_TRADE: 672, // 🔴 NEW → 7 days (96 bars/day)
+  // Trailing Stop Configurations
+  USE_TRAILING_STOP: false,
+  TRAILING_ACTIVATION_R: 2.0, // Activate trailing after 2R is reached
+  TRAILING_ATR_MULT: 2.5,     // Trail 2.5 ATRs behind the extreme
 
   // =======================================
   // FUNDING PIPS PROP FIRM CONSTRAINTS
@@ -30,7 +31,6 @@ export const CONFIG = {
     COMMISSION_PCT: 0.0004,    // 0.04% per lot round trip
     NO_WEEKEND_HOLDING: true   // Friday exit requirement
   }
-
 };
 
 // =======================================
@@ -68,9 +68,171 @@ export const ASSET_CONFIGS = {
 // =======================================
 export const DIRECTION_CONFIGS = {
   short: {
-    TP_R: 4.0 // OPTIMIZED: Prop Firm pass rate jumps to 88% by pushing targets further out
+    TP_R: 5.0,
+    MACRO_EMA: "ema200",
+    PULLBACK_EMA: "ema20",
+    SL_ATR_BUFFER: 0.5,
+    ADX_THRESHOLD: 0
   },
   long: {
-    TP_R: 3.0
+    TP_R: 5.0,
+    MACRO_EMA: "ema200",
+    PULLBACK_EMA: "ema20",
+    SL_ATR_BUFFER: 1.0,
+    ADX_THRESHOLD: 0
+  }
+};
+
+// =======================================
+// ASSET OVERRIDES (V2 OPTIMIZED)
+// =======================================
+export const ASSET_OVERRIDES = {
+  "long": {
+    "B-BTCUSDT": {
+      "IMPULSE_MULT": 1.5,
+      "WICK_MULT": 0.5,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 960
+    },
+    "B-ETHUSDT": {
+      "IMPULSE_MULT": 1.2,
+      "WICK_MULT": 0.4,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 960
+    },
+    "B-XRPUSDT": {
+      "IMPULSE_MULT": 1.2,
+      "WICK_MULT": 0.7,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-LTCUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.6,
+      "VOL_FAIL_MULT": 0.7,
+      "MAX_BARS_IN_TRADE": 960
+    },
+    "B-BCHUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.4,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-ADAUSDT": {
+      "IMPULSE_MULT": 1.2,
+      "WICK_MULT": 0.5,
+      "VOL_FAIL_MULT": 0.8,
+      "MAX_BARS_IN_TRADE": 192
+    },
+    "B-TRXUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.6,
+      "VOL_FAIL_MULT": 0.7,
+      "MAX_BARS_IN_TRADE": 192
+    },
+    "B-XLMUSDT": {
+      "IMPULSE_MULT": 1.5,
+      "WICK_MULT": 0.6,
+      "VOL_FAIL_MULT": 0.7,
+      "MAX_BARS_IN_TRADE": 384
+    },
+    "B-IOTAUSDT": {
+      "IMPULSE_MULT": 1.2,
+      "WICK_MULT": 0.4,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-DASHUSDT": {
+      "IMPULSE_MULT": 1,
+      "WICK_MULT": 0.4,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 384
+    },
+    "B-ZECUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.5,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-NEOUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.6,
+      "VOL_FAIL_MULT": 0.7,
+      "MAX_BARS_IN_TRADE": 672
+    }
+  },
+  "short": {
+    "B-BTCUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.5,
+      "VOL_FAIL_MULT": 0.7,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-ETHUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.5,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 384
+    },
+    "B-XRPUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.7,
+      "VOL_FAIL_MULT": 0.7,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-LTCUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.5,
+      "VOL_FAIL_MULT": 0.7,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-BCHUSDT": {
+      "IMPULSE_MULT": 1.2,
+      "WICK_MULT": 0.4,
+      "VOL_FAIL_MULT": 0.8,
+      "MAX_BARS_IN_TRADE": 960
+    },
+    "B-ADAUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.6,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 192
+    },
+    "B-TRXUSDT": {
+      "IMPULSE_MULT": 1,
+      "WICK_MULT": 0.4,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-XLMUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.5,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 384
+    },
+    "B-IOTAUSDT": {
+      "IMPULSE_MULT": 1,
+      "WICK_MULT": 0.4,
+      "VOL_FAIL_MULT": 0.7,
+      "MAX_BARS_IN_TRADE": 384
+    },
+    "B-DASHUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.7,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 384
+    },
+    "B-ZECUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.4,
+      "VOL_FAIL_MULT": 0.5,
+      "MAX_BARS_IN_TRADE": 672
+    },
+    "B-NEOUSDT": {
+      "IMPULSE_MULT": 0.8,
+      "WICK_MULT": 0.5,
+      "VOL_FAIL_MULT": 0.8,
+      "MAX_BARS_IN_TRADE": 960
+    }
   }
 };

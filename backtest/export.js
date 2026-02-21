@@ -83,6 +83,7 @@ export function exportEntryDiagnostics(perPairResults, direction = "short") {
     "Trades",
     "SumR",
 
+    "RegimeBlocked",
     "BTCBlocked",
     "VolBlocked",
     "BounceBlocked",
@@ -109,6 +110,7 @@ export function exportEntryDiagnostics(perPairResults, direction = "short") {
       d.trades,
       d.sumR.toFixed(2),
 
+      d.regimeBlocked,
       d.btcBlocked,
       d.volBlocked,
       d.bounceBlocked,

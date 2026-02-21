@@ -58,8 +58,8 @@ export async function backtestPair(pair, opts = {}) {
 
   if (!candles15m || candles15m.length < startOffset + 100) return null;
 
-  const ind15mArr = precomputeIndicators(candles15m);
-  const ind1hArr = precomputeIndicators(candles1h);
+  const ind15mArr = opts.ind15mArr || precomputeIndicators(candles15m);
+  const ind1hArr = opts.ind1hArr || precomputeIndicators(candles1h);
 
   let trades = [];
   let inTrade = false;
@@ -91,7 +91,7 @@ export async function backtestPair(pair, opts = {}) {
     // ===============================
     if (inTrade) {
       const durationBars = i - entryIndex;
-      const riskPerUnit = Math.abs(sl - entry); // Works for both Long and Short
+      const riskPerUnit = Math.abs(tradeContext.initialSl - entry); // Works for both Long and Short
 
       // R Calc depends on direction
       let favorableR, adverseR;
@@ -106,6 +106,23 @@ export async function backtestPair(pair, opts = {}) {
 
       maxFavorableR = Math.max(maxFavorableR, favorableR);
       maxAdverseR = Math.max(maxAdverseR, adverseR);
+
+      // TRAILING STOP CHECK
+      const useTrailing = opts.USE_TRAILING_STOP !== undefined ? opts.USE_TRAILING_STOP : (CONFIG.USE_TRAILING_STOP || false);
+      const trailAct = opts.TRAILING_ACTIVATION_R !== undefined ? opts.TRAILING_ACTIVATION_R : (CONFIG.TRAILING_ACTIVATION_R || 2.0);
+      const trailMult = opts.TRAILING_ATR_MULT !== undefined ? opts.TRAILING_ATR_MULT : (CONFIG.TRAILING_ATR_MULT || 2.5);
+
+      if (useTrailing && maxFavorableR >= trailAct) {
+        if (direction === "short") {
+          tp = -Infinity; // Disable hard TP
+          const newSl = c.high + trailMult * ind15mArr[i].atr;
+          if (newSl < sl) sl = newSl;
+        } else {
+          tp = Infinity; // Disable hard TP
+          const newSl = c.low - trailMult * ind15mArr[i].atr;
+          if (newSl > sl) sl = newSl;
+        }
+      }
 
       // SCALE-INS
       // Short: liquidationProxy
@@ -143,14 +160,19 @@ export async function backtestPair(pair, opts = {}) {
       }
 
       if (stoppedOut) {
-        const costs = applyCosts(rAtSl, durationBars, entry, sl);
+        let baseR = direction === "short" ? (entry - sl) / riskPerUnit : (sl - entry) / riskPerUnit;
+        let dynamicGrossR = baseR;
+        if (scaleLevel >= 1) dynamicGrossR += (baseR - 1) * 0.5;
+        if (scaleLevel >= 2) dynamicGrossR += (baseR - 2) * 0.25;
+
+        const costs = applyCosts(dynamicGrossR, durationBars, entry, tradeContext.initialSl);
 
         trades.push({
           ...tradeContext,
           exitTime: c.time,
           exitPrice: sl,
           R: costs.netR,
-          grossR: rAtSl,
+          grossR: dynamicGrossR,
           ...costs,
           durationBars,
           maxFavorableR,
@@ -160,7 +182,7 @@ export async function backtestPair(pair, opts = {}) {
         recordTrade(diag, costs.netR);
         inTrade = false;
       } else if (takeProfit) {
-        const costs = applyCosts(rAtTp, durationBars, entry, sl);
+        const costs = applyCosts(rAtTp, durationBars, entry, tradeContext.initialSl);
 
         trades.push({
           ...tradeContext,
@@ -179,7 +201,8 @@ export async function backtestPair(pair, opts = {}) {
       }
 
       // Time-based exit? (Max bars)
-      if (inTrade && durationBars > CONFIG.MAX_BARS_IN_TRADE) {
+      const maxBars = opts.MAX_BARS_IN_TRADE !== undefined ? opts.MAX_BARS_IN_TRADE : CONFIG.MAX_BARS_IN_TRADE;
+      if (inTrade && durationBars > maxBars) {
         // Force close at Close
         const exitPrice = c.close;
         let baseR = direction === "short" ? (entry - exitPrice) / riskPerUnit : (exitPrice - entry) / riskPerUnit;
@@ -187,7 +210,7 @@ export async function backtestPair(pair, opts = {}) {
         if (scaleLevel >= 1) grossR += (baseR - 1) * 0.5;
         if (scaleLevel >= 2) grossR += (baseR - 2) * 0.25;
 
-        const costs = applyCosts(grossR, durationBars, entry, sl);
+        const costs = applyCosts(grossR, durationBars, entry, tradeContext.initialSl);
 
         trades.push({
           ...tradeContext,
@@ -213,7 +236,27 @@ export async function backtestPair(pair, opts = {}) {
     // ===============================
     bumpBars(diag);
 
-    if (!volatilityExpansion(candles1h, ind1hArr, h1, assetClass)) {
+    // 1H Macro Regime Filter
+    const hc = candles1h[h1];
+    const hi = ind1hArr[h1];
+    const macroEma = opts.MACRO_EMA || 'ema100';
+
+    if (direction === "short" && hc.close > hi[macroEma]) {
+      recordBlock(diag, "regimeBlocked");
+      continue;
+    }
+    if (direction === "long" && hc.close <= hi[macroEma]) {
+      recordBlock(diag, "regimeBlocked");
+      continue;
+    }
+
+    const adxThreshold = opts.ADX_THRESHOLD || 0;
+    if (hi.adx < adxThreshold) {
+      recordBlock(diag, "adxBlocked");
+      continue;
+    }
+
+    if (!volatilityExpansion(candles1h, ind1hArr, h1, assetClass, opts)) {
       recordBlock(diag, "volBlocked");
       continue;
     }
@@ -224,12 +267,12 @@ export async function backtestPair(pair, opts = {}) {
 
     // Check signals based on direction
     if (direction === "short") {
-      setup = failedBounce15m(candles15m, ind15mArr, i, assetClass);
-      trigger = rejectionBreakdown(candles15m, i, assetClass);
+      setup = failedBounce15m(candles15m, ind15mArr, i, assetClass, opts);
+      trigger = rejectionBreakdown(candles15m, i, assetClass, opts);
       liqOverride = liquidationProxy(candles15m, i);
     } else {
-      setup = failedPullback15m(candles15m, ind15mArr, i, assetClass);
-      trigger = rejectionBreakout(candles15m, i, assetClass);
+      setup = failedPullback15m(candles15m, ind15mArr, i, assetClass, opts);
+      trigger = rejectionBreakout(candles15m, i, assetClass, opts);
       liqOverride = bullishLiquidationProxy(candles15m, i);
     }
 
@@ -255,7 +298,7 @@ export async function backtestPair(pair, opts = {}) {
 
     // SL / TP Calc
     if (direction === "short") {
-      sl = calcSurvivalSL(candles15m, ind15mArr, i);
+      sl = calcSurvivalSL(candles15m, ind15mArr, i, opts);
       const risk = sl - entry;
       // Sanity check for negative risk (in case SL < Entry error)
       if (risk <= 0) continue; // Skip invalid
@@ -265,7 +308,7 @@ export async function backtestPair(pair, opts = {}) {
       }
       tp = entry - risk * TP_R;
     } else {
-      sl = calcLongSL(candles15m, ind15mArr, i);
+      sl = calcLongSL(candles15m, ind15mArr, i, opts);
       const risk = entry - sl;
       if (risk <= 0) continue;
       if ((risk / entry) < (CONFIG.MIN_SL_PCT || 0)) {
@@ -288,6 +331,7 @@ export async function backtestPair(pair, opts = {}) {
       entryTime: c.time,
       entryPrice: entry,
       sl,
+      initialSl: sl,
       tp,
       setup,
       trigger,

@@ -70,15 +70,23 @@ export function computeMetrics(trades) {
   }
 
   const winDistribution = {};
-  for (const [rVal, count] of Object.entries(winDistMap).sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]))) {
+  const winEntries = Object.entries(winDistMap).sort((a, b) => (b[1] - a[1]) || (parseFloat(b[0]) - parseFloat(a[0])));
+  for (const [rVal, count] of winEntries.slice(0, 5)) {
     const pct = wins.length > 0 ? ((count / wins.length) * 100).toFixed(2) : "0.00";
     winDistribution[rVal] = `${count} (${pct}%)`;
   }
+  if (winEntries.length > 5) {
+    winDistribution["..."] = `(${winEntries.length - 5} other targets)`;
+  }
 
   const lossDistribution = {};
-  for (const [rVal, count] of Object.entries(lossDistMap).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))) {
+  const lossEntries = Object.entries(lossDistMap).sort((a, b) => (b[1] - a[1]) || (parseFloat(a[0]) - parseFloat(b[0])));
+  for (const [rVal, count] of lossEntries.slice(0, 5)) {
     const pct = lostTrades > 0 ? ((count / lostTrades) * 100).toFixed(2) : "0.00";
     lossDistribution[rVal] = `${count} (${pct}%)`;
+  }
+  if (lossEntries.length > 5) {
+    lossDistribution["..."] = `(${lossEntries.length - 5} other targets)`;
   }
 
   return {

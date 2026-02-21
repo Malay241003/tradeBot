@@ -1,0 +1,462 @@
+{
+  "long": {
+    "B-BTCUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 1.5,
+        "WICK_MULT": 0.5,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 960
+      },
+      "trades": 75,
+      "winRate": 37.333333333333336,
+      "expectancy": 1.0433148069681837,
+      "netR": 78.24861052261377,
+      "maxDD": 10.024480041735137
+    },
+    "B-ETHUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 1.2,
+        "WICK_MULT": 0.4,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 960
+      },
+      "trades": 63,
+      "winRate": 34.92063492063492,
+      "expectancy": 1.516375827264922,
+      "netR": 95.53167711769008,
+      "maxDD": 10.952031183558795
+    },
+    "B-XRPUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 1.2,
+        "WICK_MULT": 0.7,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 82,
+      "winRate": 25.609756097560975,
+      "expectancy": 0.48954007676546357,
+      "netR": 40.14228629476801,
+      "maxDD": 31.084094986818506
+    },
+    "B-LTCUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.6,
+        "VOL_FAIL_MULT": 0.7,
+        "MAX_BARS_IN_TRADE": 960
+      },
+      "trades": 72,
+      "winRate": 36.11111111111111,
+      "expectancy": 1.075158807663785,
+      "netR": 77.41143415179252,
+      "maxDD": 6.282487115984546
+    },
+    "B-BCHUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.4,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 76,
+      "winRate": 34.21052631578947,
+      "expectancy": 0.858582879845256,
+      "netR": 65.25229886823946,
+      "maxDD": 18.80030003728784
+    },
+    "B-ADAUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 1.2,
+        "WICK_MULT": 0.5,
+        "VOL_FAIL_MULT": 0.8,
+        "MAX_BARS_IN_TRADE": 192
+      },
+      "trades": 70,
+      "winRate": 44.285714285714285,
+      "expectancy": 0.6440552583811355,
+      "netR": 45.08386808667949,
+      "maxDD": 12.09435435358019
+    },
+    "B-TRXUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.6,
+        "VOL_FAIL_MULT": 0.7,
+        "MAX_BARS_IN_TRADE": 192
+      },
+      "trades": 68,
+      "winRate": 36.76470588235294,
+      "expectancy": 0.8123185844304119,
+      "netR": 55.237663741268015,
+      "maxDD": 11.803476572272192
+    },
+    "B-XLMUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 1.5,
+        "WICK_MULT": 0.6,
+        "VOL_FAIL_MULT": 0.7,
+        "MAX_BARS_IN_TRADE": 384
+      },
+      "trades": 67,
+      "winRate": 28.35820895522388,
+      "expectancy": 0.47218120647889195,
+      "netR": 31.63614083408576,
+      "maxDD": 15.895041201483764
+    },
+    "B-IOTAUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 1.2,
+        "WICK_MULT": 0.4,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 59,
+      "winRate": 23.728813559322035,
+      "expectancy": 0.4152814190334645,
+      "netR": 24.501603722974405,
+      "maxDD": 24.746583114170527
+    },
+    "B-DASHUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 1,
+        "WICK_MULT": 0.4,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 384
+      },
+      "trades": 56,
+      "winRate": 30.357142857142854,
+      "expectancy": 0.5114177190417167,
+      "netR": 28.639392266336134,
+      "maxDD": 14.402352702565716
+    },
+    "B-ZECUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.5,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 65,
+      "winRate": 30.76923076923077,
+      "expectancy": 0.72996996679515,
+      "netR": 47.448047841684755,
+      "maxDD": 11.240411378436029
+    },
+    "B-NEOUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 1,
+        "ADX_THRESHOLD": 0,
+        "direction": "long",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.6,
+        "VOL_FAIL_MULT": 0.7,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 79,
+      "winRate": 25.31645569620253,
+      "expectancy": 0.36862125201778434,
+      "netR": 29.12107890940496,
+      "maxDD": 15.876132750344883
+    }
+  },
+  "short": {
+    "B-BTCUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.5,
+        "VOL_FAIL_MULT": 0.7,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 89,
+      "winRate": 28.08988764044944,
+      "expectancy": 0.695435791824724,
+      "netR": 61.89378547240044,
+      "maxDD": 22.247689540038813
+    },
+    "B-ETHUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.5,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 384
+      },
+      "trades": 93,
+      "winRate": 29.03225806451613,
+      "expectancy": 0.3747904316284188,
+      "netR": 34.85551014144295,
+      "maxDD": 34.94043294998577
+    },
+    "B-XRPUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.7,
+        "VOL_FAIL_MULT": 0.7,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 76,
+      "winRate": 36.84210526315789,
+      "expectancy": 1.0428245004947971,
+      "netR": 79.25466203760459,
+      "maxDD": 16.33726630124025
+    },
+    "B-LTCUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.5,
+        "VOL_FAIL_MULT": 0.7,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 77,
+      "winRate": 36.36363636363637,
+      "expectancy": 1.0585942564450432,
+      "netR": 81.51175774626833,
+      "maxDD": 15.332866579585641
+    },
+    "B-BCHUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 1.2,
+        "WICK_MULT": 0.4,
+        "VOL_FAIL_MULT": 0.8,
+        "MAX_BARS_IN_TRADE": 960
+      },
+      "trades": 57,
+      "winRate": 38.59649122807017,
+      "expectancy": 1.0747865294806416,
+      "netR": 61.262832180396565,
+      "maxDD": 10.117032005482784
+    },
+    "B-ADAUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.6,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 192
+      },
+      "trades": 63,
+      "winRate": 34.92063492063492,
+      "expectancy": 0.29148976280945205,
+      "netR": 18.36385505699548,
+      "maxDD": 11.112629655460527
+    },
+    "B-TRXUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 1,
+        "WICK_MULT": 0.4,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 78,
+      "winRate": 30.76923076923077,
+      "expectancy": 0.3362193699356848,
+      "netR": 26.225110854983413,
+      "maxDD": 35.60931522776488
+    },
+    "B-XLMUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.5,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 384
+      },
+      "trades": 75,
+      "winRate": 33.33333333333333,
+      "expectancy": 0.43746908632426595,
+      "netR": 32.81018147431995,
+      "maxDD": 11.900353043975048
+    },
+    "B-IOTAUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 1,
+        "WICK_MULT": 0.4,
+        "VOL_FAIL_MULT": 0.7,
+        "MAX_BARS_IN_TRADE": 384
+      },
+      "trades": 86,
+      "winRate": 29.069767441860467,
+      "expectancy": 0.27482002976580033,
+      "netR": 23.63452255985883,
+      "maxDD": 17.757521550658787
+    },
+    "B-DASHUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.7,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 384
+      },
+      "trades": 56,
+      "winRate": 42.857142857142854,
+      "expectancy": 1.3800213853799517,
+      "netR": 77.2811975812773,
+      "maxDD": 14.50418451831304
+    },
+    "B-ZECUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.4,
+        "VOL_FAIL_MULT": 0.5,
+        "MAX_BARS_IN_TRADE": 672
+      },
+      "trades": 48,
+      "winRate": 43.75,
+      "expectancy": 1.1651426473732782,
+      "netR": 55.92684707391736,
+      "maxDD": 11.10163514654974
+    },
+    "B-NEOUSDT": {
+      "config": {
+        "TP_R": 5,
+        "MACRO_EMA": "ema200",
+        "PULLBACK_EMA": "ema20",
+        "SL_ATR_BUFFER": 0.5,
+        "ADX_THRESHOLD": 0,
+        "direction": "short",
+        "IMPULSE_MULT": 0.8,
+        "WICK_MULT": 0.5,
+        "VOL_FAIL_MULT": 0.8,
+        "MAX_BARS_IN_TRADE": 960
+      },
+      "trades": 71,
+      "winRate": 30.985915492957744,
+      "expectancy": 0.8319807445605645,
+      "netR": 59.07063286380008,
+      "maxDD": 15.679352361729599
+    }
+  }
+}

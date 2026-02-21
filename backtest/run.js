@@ -14,6 +14,7 @@ import { exportEntryDiagnostics } from "./export.js";
 import { exportTradesDetailed } from "./export.js";
 import { exportDiagnosticExpectancy } from "./export.js";
 import { runPropFirmSimulation } from "./propFirmSim.js";
+import { CONFIG, DIRECTION_CONFIGS, ASSET_OVERRIDES } from "./config.js";
 
 // 🌎 MULTI-ASSET UNIVERSES
 import { FOREX_UNIVERSE } from "../bot/universes/forex.js";
@@ -32,9 +33,14 @@ function parseArgs() {
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--asset" && args[i + 1]) {
       asset = args[i + 1].toLowerCase();
+    } else if (args[i].startsWith("--asset=")) {
+      asset = args[i].split("=")[1].toLowerCase();
     }
+
     if (args[i] === "--direction" && args[i + 1]) {
       direction = args[i + 1].toLowerCase();
+    } else if (args[i].startsWith("--direction=")) {
+      direction = args[i].split("=")[1].toLowerCase();
     }
   }
 
@@ -79,16 +85,14 @@ async function getUniverse(assetClass) {
 // =======================================
 function getOutputDir(asset, direction) {
   // User explicitly requested /results_long/ and /results_short/ separation
-  // For crypto (default), we follow this strict pattern.
-  // For others, we append direction to keep them distinct too.
   if (asset === "crypto") {
-    const dir = `../results_${direction}`;
+    const dir = `./results_${direction}`;
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     return dir;
   }
 
   // For other assets (stocks/forex), separate by both asset and direction
-  const dir = `../results_${asset}_${direction}`;
+  const dir = `./results_${asset}_${direction}`;
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -116,9 +120,12 @@ async function runBacktest() {
   for (const pair of universe) {
     console.log("Backtesting:", pair);
 
+    const overrides = (ASSET_OVERRIDES && ASSET_OVERRIDES[direction] && ASSET_OVERRIDES[direction][pair]) ? ASSET_OVERRIDES[direction][pair] : {};
     const result = await backtestPair(pair, {
       assetClass: asset,
-      direction
+      direction,
+      ...(DIRECTION_CONFIGS[direction] || {}),
+      ...overrides
     });
     if (!result) continue;
 
