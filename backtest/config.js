@@ -44,22 +44,6 @@ export const ASSET_CONFIGS = {
     FUNDING_PER_8H: 0.0001,
     MAX_BARS_IN_TRADE: 672,
     SESSION: "24/7"
-  },
-  forex: {
-    FEE_PCT: 0,
-    SPREAD_PCT: 0.00015,
-    SLIPPAGE_PCT: 0.00005,
-    SWAP_PER_DAY: 0.00003,
-    MAX_BARS_IN_TRADE: 480,
-    SESSION: "24/5"
-  },
-  stocks: {
-    FEE_PCT: 0,
-    SPREAD_PCT: 0.0001,
-    SLIPPAGE_PCT: 0.0001,
-    SWAP_PER_DAY: 0,
-    MAX_BARS_IN_TRADE: 384,
-    SESSION: "9:30-16:00 ET"
   }
 };
 

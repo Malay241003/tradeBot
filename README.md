@@ -3,9 +3,10 @@
 A quantitative crypto trading bot and backtesting engine built in Node.js. Uses technical indicators on multi-timeframe candlestick data (15m, 1h, 4h) to generate short signals, with a full backtesting pipeline, walk-forward validation, institutional-grade Monte Carlo risk analysis, 5-year compounding projection, and fat-tail distribution analytics.
 
 **Key Features:**
-- Multi-pair universe (13 USDT pairs) with Binance data + CoinDCX execution compatibility
-- Full historical backtesting from 2018 to present with explicit institutional-grade friction (spread, slippage, tier-specific funding fees)
-- Walk-forward validation per pair (rolling window) out-of-sample testing
+- Multi-asset universe (13 USDT crypto pairs, 12 US Stocks including SPY, TSLA, AAPL).
+- Market data via Binance (Crypto) and TwelveData (Stocks/Forex) adapters with sliding JSON memory-cache.
+- Full historical backtesting from 2018 to present with explicit institutional-grade friction (spread, slippage, tier-specific funding fees).
+- Walk-forward validation per pair (sliding train/test windows) with strictly out-of-sample precomputed array execution.
 - Directional Strategy Separation (decoupled Long & Short Take Profit logic and separated metrics directories)
 - Prop Firm Simulator (Simulates Phase 1 Challenge with $10k funding parameter constraints)
 - Monte Carlo V2 risk engine (4 layers: IID, Block Bootstrap, Correlation-Preserving, Stress Injection)
@@ -35,12 +36,13 @@ tradeBot/
 │
 ├── analysis/               # Analytics & visualization
 │   ├── tradingAnalytics.js # Fat-tail distribution analytics
+│   ├── deepAnalysis.js     # Time-of-day and concurrency execution diagnostics
 │   ├── trading_analysis_long.ipynb  # Jupyter notebook for LONG strategy visualization
 │   └── trading_analysis_short.ipynb # Jupyter notebook for SHORT strategy visualization
 │
 ├── data/                   # Cached candle data (auto-generated, gitignored)
-├── results_long/           # Output directory for all Long backtest JSON/CSVs
-├── results_short/          # Output directory for all Short backtest JSON/CSVs
+├── results_long/           # Output directory for historical crypto long backtest
+├── result_us_stocks_long/  # Output directory for US Stocks long backtest
 └── .env                    # Secrets for live execution (Ignored in backtesting)
 ```
 
@@ -74,6 +76,7 @@ Create a `.env` file in the project root:
 ```env
 BINANCE_API_KEY=your_binance_api_key
 BINANCE_SECRET=your_binance_secret
+TWELVEDATA_API_KEY=your_twelvedata_api_key
 COINDCX_API_KEY=your_coindcx_api_key
 COINDCX_SECRET=your_coindcx_secret
 ```

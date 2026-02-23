@@ -1,0 +1,384 @@
+import { getCandles } from "../bot/adapters/index.js";
+import { precomputeIndicators } from "../shared_us_stocks/precomputeIndicators.js";
+import { computeMetrics } from "./metrics.js";
+import { CONFIG, DIRECTION_CONFIGS, ASSET_CONFIGS, OPTIMIZED_MICRO_STRUCTURES } from "./config.js";
+
+import {
+  volatilityExpansion,
+  failedBounce15m,
+  rejectionBreakdown,
+  calcSurvivalSL,
+  failedPullback15m,
+  rejectionBreakout,
+  calcLongSL
+} from "../shared_us_stocks/entry.js";
+
+import {
+  initEntryDiagnostics,
+  recordBlock,
+  recordEntry,
+  recordLiquidationOverride,
+  bumpBars,
+  recordTrade
+} from "../shared_us_stocks/entryDiagnostics.js";
+
+import { liquidationProxy, bullishLiquidationProxy } from "../shared_us_stocks/orderBookTrigger.js";
+
+// =======================================
+// COST CALCULATION HELPER
+// =======================================
+function applyCosts(grossR, durationBars, entry, sl, opts) {
+  const slDistancePct = Math.abs(entry - sl) / entry;
+
+  const feePct = opts.FEE_PCT !== undefined ? opts.FEE_PCT : CONFIG.FEE_PCT;
+  const spreadPct = opts.SPREAD_PCT !== undefined ? opts.SPREAD_PCT : CONFIG.SPREAD_PCT;
+  const slipPct = opts.SLIPPAGE_PCT !== undefined ? opts.SLIPPAGE_PCT : CONFIG.SLIPPAGE_PCT;
+
+  const feeCostR = (feePct * 2) / slDistancePct;
+  const slippageCostR = (slipPct * 2) / slDistancePct;
+  const spreadCostR = (spreadPct) / slDistancePct;
+
+  let fundingCostR = 0;
+  if (opts.SWAP_PER_DAY !== undefined) {
+    fundingCostR = (opts.SWAP_PER_DAY * (durationBars / 26)) / slDistancePct;
+  } else {
+    const fundingRate = opts.FUNDING_PER_8H !== undefined ? opts.FUNDING_PER_8H : CONFIG.FUNDING_PER_8H;
+    fundingCostR = (fundingRate * (durationBars / 32)) / slDistancePct;
+  }
+
+  const netR = grossR - feeCostR - slippageCostR - spreadCostR - fundingCostR;
+  return { netR, feeCostR, slippageCostR, spreadCostR, fundingCostR };
+}
+
+// =======================================
+// BACKTEST
+// =======================================
+export async function backtestPair(pair, opts = {}) {
+  const assetClass = opts.assetClass || "crypto";
+
+  const symbol = assetClass === "crypto" ? pair.replace("B-", "") : pair;
+
+  // Apply Micro-Structure Overrides directly if available
+  const microStructureOverride = (OPTIMIZED_MICRO_STRUCTURES[symbol] && OPTIMIZED_MICRO_STRUCTURES[symbol][opts.direction])
+    || {};
+
+  opts = {
+    ...(ASSET_CONFIGS[assetClass] || {}),
+    ...opts,
+    ...microStructureOverride
+  };
+
+  const direction = opts.direction || "short"; // "short" (default) or "long"
+  const diag = initEntryDiagnostics();
+
+  // Use windowed data if provided (walk-forward), otherwise fetch full history
+  const candles15m = opts.candles15m || await getCandles(symbol, "15m", assetClass);
+  const candles1h = opts.candles1h || await getCandles(symbol, "1h", assetClass);
+
+  // startOffset: indicator warm-up region. Trades only counted at i >= startOffset.
+  const startOffset = Math.max(120, opts.startOffset || 120);
+
+  if (!candles15m || candles15m.length < startOffset + 100) return null;
+
+  const ind15mArr = opts.ind15mArr || precomputeIndicators(candles15m);
+  const ind1hArr = opts.ind1hArr || precomputeIndicators(candles1h);
+
+  let trades = [];
+  let inTrade = false;
+
+  let entry, sl, tp, entryIndex;
+  let scaleLevel = 0;
+  let positionR = 1;
+  let rAtTp = CONFIG.TP_R;
+  let rAtSl = -1;
+
+  let maxFavorableR = 0;
+  let maxAdverseR = 0;
+
+  // Resolving Directional Config Defaults
+  const TP_R = (opts.TP_R) ? opts.TP_R : (DIRECTION_CONFIGS[direction]?.TP_R || 3.0);
+
+  let tradeContext = null;
+
+  let h1 = 0;
+
+  for (let i = startOffset; i < candles15m.length; i++) {
+    const c = candles15m[i];
+
+    while (h1 + 1 < candles1h.length && candles1h[h1 + 1].time <= c.time) h1++;
+    if (h1 < 50) continue;
+
+    // ===============================
+    // MANAGE TRADE
+    // ===============================
+    if (inTrade) {
+      const durationBars = i - entryIndex;
+      const riskPerUnit = Math.abs(tradeContext.initialSl - entry); // Works for both Long and Short
+
+      // R Calc depends on direction
+      let favorableR, adverseR;
+
+      if (direction === "short") {
+        favorableR = (entry - c.low) / riskPerUnit;
+        adverseR = (c.high - entry) / riskPerUnit;
+      } else {
+        favorableR = (c.high - entry) / riskPerUnit;
+        adverseR = (entry - c.low) / riskPerUnit;
+      }
+
+      maxFavorableR = Math.max(maxFavorableR, favorableR);
+      maxAdverseR = Math.max(maxAdverseR, adverseR);
+
+      // TRAILING STOP CHECK
+      const useTrailing = opts.USE_TRAILING_STOP !== undefined ? opts.USE_TRAILING_STOP : (CONFIG.USE_TRAILING_STOP || false);
+      const trailAct = opts.TRAILING_ACTIVATION_R !== undefined ? opts.TRAILING_ACTIVATION_R : (CONFIG.TRAILING_ACTIVATION_R || 2.0);
+      const trailMult = opts.TRAILING_ATR_MULT !== undefined ? opts.TRAILING_ATR_MULT : (CONFIG.TRAILING_ATR_MULT || 2.5);
+
+      if (useTrailing && maxFavorableR >= trailAct) {
+        if (direction === "short") {
+          tp = -Infinity; // Disable hard TP
+          const newSl = c.high + trailMult * ind15mArr[i].atr;
+          if (newSl < sl) sl = newSl;
+        } else {
+          tp = Infinity; // Disable hard TP
+          const newSl = c.low - trailMult * ind15mArr[i].atr;
+          if (newSl > sl) sl = newSl;
+        }
+      }
+
+      // SCALE-INS
+      // Short: liquidationProxy
+      // Long: bullishLiquidationProxy
+      const isScaleTrigger = direction === "short"
+        ? liquidationProxy(candles15m, i)
+        : bullishLiquidationProxy(candles15m, i);
+
+      if (scaleLevel === 0 && maxFavorableR >= 1 && isScaleTrigger) {
+        positionR += 0.5;
+        scaleLevel = 1;
+        rAtTp += 0.5 * (TP_R - 1);
+        rAtSl -= 0.5 * 2; // Extra 0.5 drops from +1R to -1R, a loss of 2R -> -1
+      }
+
+      if (scaleLevel === 1 && maxFavorableR >= 2 && isScaleTrigger) {
+        positionR += 0.25;
+        scaleLevel = 2;
+        rAtTp += 0.25 * (TP_R - 2);
+        rAtSl -= 0.25 * 3; // Extra 0.25 drops from +2R to -1R, a loss of 3R -> -0.75
+      }
+
+      // STOP LOSS / TAKE PROFIT CHECK
+      let stoppedOut = false;
+      let takeProfit = false;
+      let actualExitPrice = 0;
+
+      if (direction === "short") {
+        // Short: High hits SL, Low hits TP
+        if (c.high >= sl) {
+          stoppedOut = true;
+          actualExitPrice = (c.open > sl) ? c.open : sl; // Gap risk slippage
+        } else if (c.low <= tp) {
+          takeProfit = true;
+          actualExitPrice = (c.open < tp) ? c.open : tp; // Gap reward
+        }
+      } else {
+        // Long: Low hits SL, High hits TP
+        if (c.low <= sl) {
+          stoppedOut = true;
+          actualExitPrice = (c.open < sl) ? c.open : sl; // Gap risk slippage
+        } else if (c.high >= tp) {
+          takeProfit = true;
+          actualExitPrice = (c.open > tp) ? c.open : tp; // Gap reward
+        }
+      }
+
+      if (stoppedOut || takeProfit) {
+        let baseR = direction === "short" ? (entry - actualExitPrice) / riskPerUnit : (actualExitPrice - entry) / riskPerUnit;
+        let dynamicGrossR = baseR;
+        if (scaleLevel >= 1) dynamicGrossR += (baseR - 1) * 0.5;
+        if (scaleLevel >= 2) dynamicGrossR += (baseR - 2) * 0.25;
+
+        const costs = applyCosts(dynamicGrossR, durationBars, entry, tradeContext.initialSl, opts);
+
+        trades.push({
+          ...tradeContext,
+          exitTime: c.time,
+          exitPrice: actualExitPrice,
+          R: costs.netR,
+          grossR: dynamicGrossR,
+          ...costs,
+          durationBars,
+          maxFavorableR,
+          maxAdverseR
+        });
+
+        recordTrade(diag, costs.netR);
+        inTrade = false;
+      }
+
+      // Time-based exit? (Max bars)
+      const maxBars = opts.MAX_BARS_IN_TRADE !== undefined ? opts.MAX_BARS_IN_TRADE : CONFIG.MAX_BARS_IN_TRADE;
+      if (inTrade && durationBars > maxBars) {
+        // Force close at Close
+        const exitPrice = c.close;
+        let baseR = direction === "short" ? (entry - exitPrice) / riskPerUnit : (exitPrice - entry) / riskPerUnit;
+        let grossR = baseR;
+        if (scaleLevel >= 1) grossR += (baseR - 1) * 0.5;
+        if (scaleLevel >= 2) grossR += (baseR - 2) * 0.25;
+
+        const costs = applyCosts(grossR, durationBars, entry, tradeContext.initialSl, opts);
+
+        trades.push({
+          ...tradeContext,
+          exitTime: c.time,
+          exitPrice,
+          R: costs.netR,
+          grossR,
+          ...costs,
+          durationBars,
+          maxFavorableR,
+          maxAdverseR,
+          note: "timeExit"
+        });
+        recordTrade(diag, costs.netR);
+        inTrade = false;
+      }
+
+      continue;
+    }
+
+    // ===============================
+    // ENTRY (WITH DIAGNOSTICS)
+    // ===============================
+    bumpBars(diag);
+
+    // US Stocks Strict Time-of-Day Filter (04:00 - 05:59 UTC)
+    if (assetClass === "stocks") {
+      const d = new Date(c.time);
+      const utcHour = d.getUTCHours();
+
+      if (utcHour !== 4 && utcHour !== 5) {
+        recordBlock(diag, "sessionBlocked");
+        continue;
+      }
+    }
+
+    // 1H Macro Regime Filter
+    const hc = candles1h[h1];
+    const hi = ind1hArr[h1];
+    const macroEma = opts.MACRO_EMA || 'ema100';
+
+    if (direction === "short" && hc.close > hi[macroEma]) {
+      recordBlock(diag, "regimeBlocked");
+      continue;
+    }
+    if (direction === "long" && hc.close <= hi[macroEma]) {
+      recordBlock(diag, "regimeBlocked");
+      continue;
+    }
+
+    const adxThreshold = opts.ADX_THRESHOLD || 0;
+    if (hi.adx < adxThreshold) {
+      recordBlock(diag, "adxBlocked");
+      continue;
+    }
+
+    if (!volatilityExpansion(candles1h, ind1hArr, h1, assetClass, opts)) {
+      recordBlock(diag, "volBlocked");
+      continue;
+    }
+
+    let setup = false;
+    let trigger = false;
+    let liqOverride = false;
+
+    // Check signals based on direction
+    if (direction === "short") {
+      setup = failedBounce15m(candles15m, ind15mArr, i, assetClass, opts);
+      trigger = rejectionBreakdown(candles15m, i, assetClass, opts);
+      liqOverride = liquidationProxy(candles15m, i);
+    } else {
+      setup = failedPullback15m(candles15m, ind15mArr, i, assetClass, opts);
+      trigger = rejectionBreakout(candles15m, i, assetClass, opts);
+      liqOverride = bullishLiquidationProxy(candles15m, i);
+    }
+
+    if (!setup && !liqOverride) {
+      recordBlock(diag, "bounceBlocked");
+      continue;
+    }
+
+    if (!trigger && !liqOverride) {
+      recordBlock(diag, "rejectionBlocked");
+      continue;
+    }
+
+    if (liqOverride && (!setup || !trigger)) {
+      recordLiquidationOverride(diag);
+    }
+
+    recordEntry(diag);
+
+    // ✅ ENTER
+    entry = c.close;
+    entryIndex = i;
+
+    // SL / TP Calc
+    if (direction === "short") {
+      sl = calcSurvivalSL(candles15m, ind15mArr, i, opts);
+      const risk = sl - entry;
+      // Sanity check for negative risk (in case SL < Entry error)
+      if (risk <= 0) continue; // Skip invalid
+      if ((risk / entry) < (CONFIG.MIN_SL_PCT || 0)) {
+        recordBlock(diag, "tightSlBlocked");
+        continue;
+      }
+      tp = entry - risk * TP_R;
+    } else {
+      sl = calcLongSL(candles15m, ind15mArr, i, opts);
+      const risk = entry - sl;
+      if (risk <= 0) continue;
+      if ((risk / entry) < (CONFIG.MIN_SL_PCT || 0)) {
+        recordBlock(diag, "tightSlBlocked");
+        continue;
+      }
+      tp = entry + risk * TP_R;
+    }
+
+    scaleLevel = 0;
+    positionR = 1;
+    rAtTp = TP_R;
+    rAtSl = -1;
+    maxFavorableR = 0;
+    maxAdverseR = 0;
+
+    tradeContext = {
+      pair,
+      direction,
+      entryTime: c.time,
+      entryPrice: entry,
+      sl,
+      initialSl: sl,
+      tp,
+      setup,
+      trigger,
+      liquidationOverride: liqOverride
+    };
+
+    inTrade = true;
+  }
+
+  return {
+    pair,
+    trades,
+    metrics: computeMetrics(trades),
+    diagnostics: diag
+  };
+}
+
+
+
+
+
+
+

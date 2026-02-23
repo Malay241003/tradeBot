@@ -39,7 +39,7 @@ Thumbs.db
 
 
 # Result directories
-results_*/
+result*/
 
 # Archived/Temporary outputs
 _archive_root_outputs/
