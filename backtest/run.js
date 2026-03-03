@@ -14,11 +14,14 @@ import { exportEntryDiagnostics } from "./export.js";
 import { exportTradesDetailed } from "./export.js";
 import { exportDiagnosticExpectancy } from "./export.js";
 import { runPropFirmSimulation } from "./propFirmSim.js";
-import { CONFIG, DIRECTION_CONFIGS, ASSET_OVERRIDES } from "./config.js";
+import { CONFIG, DIRECTION_CONFIGS } from "./config.js";
 
 // 🌎 MULTI-ASSET UNIVERSES
 import { FOREX_UNIVERSE } from "../bot/universes/forex.js";
 import { STOCKS_UNIVERSE } from "../bot/universes/stocks.js";
+import { CRYPTO_TOP100 } from "../bot/universes/crypto_top100.js";
+import { CRYPTO_LONG } from "../bot/universes/crypto_long.js";
+import { CRYPTO_SHORT } from "../bot/universes/crypto_short.js";
 
 import fs from "fs";
 
@@ -29,6 +32,7 @@ function parseArgs() {
   const args = process.argv.slice(2);
   let asset = "crypto"; // default
   let direction = "short"; // default
+  let universe = "original"; // "original" (14 legacy), "top100", or "validated" (WF-validated)
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--asset" && args[i + 1]) {
@@ -41,6 +45,12 @@ function parseArgs() {
       direction = args[i + 1].toLowerCase();
     } else if (args[i].startsWith("--direction=")) {
       direction = args[i].split("=")[1].toLowerCase();
+    }
+
+    if (args[i] === "--universe" && args[i + 1]) {
+      universe = args[i + 1].toLowerCase();
+    } else if (args[i].startsWith("--universe=")) {
+      universe = args[i].split("=")[1].toLowerCase();
     }
   }
 
@@ -56,16 +66,54 @@ function parseArgs() {
     process.exit(1);
   }
 
-  return { asset, direction };
+  return { asset, direction, universe };
 }
 
 // =======================================
 // UNIVERSE BUILDER PER ASSET
 // =======================================
-async function getUniverse(assetClass) {
+async function getUniverse(assetClass, universeType, direction) {
   switch (assetClass) {
-    case "crypto":
-      return buildUniverse();
+    case "crypto": {
+      if (universeType === "validated") {
+        // Walk-forward validated universe
+        const file = `validated_universe_${direction}.json`;
+        if (fs.existsSync(file)) {
+          const data = JSON.parse(fs.readFileSync(file, "utf8"));
+          console.log(`[UNIVERSE] WF-Validated ${direction.toUpperCase()} — ${data.pairs.length} coins`);
+          return data.pairs;
+        }
+        console.warn(`⚠️ ${file} not found, falling back to original universe`);
+        return buildUniverse();
+      }
+      if (universeType === "screened") {
+        // All statistically screened coins (before WF pruning) — max trade frequency
+        const file = `screened_pairs_${direction}.json`;
+        if (fs.existsSync(file)) {
+          const pairs = JSON.parse(fs.readFileSync(file, "utf8"));
+          console.log(`[UNIVERSE] Screened ${direction.toUpperCase()} — ${pairs.length} coins (pre-WF)`);
+          return pairs;
+        }
+        console.warn(`⚠️ ${file} not found, falling back to original universe`);
+        return buildUniverse();
+      }
+      if (universeType === "top100") {
+        console.log(`[UNIVERSE] Crypto Top 100 — ${CRYPTO_TOP100.length} pairs`);
+        return CRYPTO_TOP100;
+      }
+      if (universeType === "legacy") {
+        // Old 14-coin hardcoded universe
+        return buildUniverse();
+      }
+      // Default: direction-specific deployment universe (exp ≥ 0.4R filtered)
+      if (direction === "long") {
+        console.log(`[UNIVERSE] Crypto LONG deployment — ${CRYPTO_LONG.length} coins`);
+        return CRYPTO_LONG;
+      } else {
+        console.log(`[UNIVERSE] Crypto SHORT deployment — ${CRYPTO_SHORT.length} coins`);
+        return CRYPTO_SHORT;
+      }
+    }
 
     case "forex":
       console.log(`[UNIVERSE] Forex — ${FOREX_UNIVERSE.length} pairs`);
@@ -101,14 +149,14 @@ function getOutputDir(asset, direction) {
 // MAIN BACKTEST
 // =======================================
 async function runBacktest() {
-  const { asset, direction } = parseArgs();
+  const { asset, direction, universe: universeType } = parseArgs();
   const outputDir = getOutputDir(asset, direction);
 
   console.log(`\n╔══════════════════════════════════════════════════════╗`);
   console.log(`║  📊  BACKTEST — ${asset.toUpperCase().padEnd(10)} ${direction.toUpperCase().padEnd(27)}║`);
   console.log(`╚══════════════════════════════════════════════════════╝\n`);
 
-  const universe = await getUniverse(asset);
+  const universe = await getUniverse(asset, universeType, direction);
 
   let allTrades = [];
   let perPairStats = [];
@@ -120,12 +168,10 @@ async function runBacktest() {
   for (const pair of universe) {
     console.log("Backtesting:", pair);
 
-    const overrides = (ASSET_OVERRIDES && ASSET_OVERRIDES[direction] && ASSET_OVERRIDES[direction][pair]) ? ASSET_OVERRIDES[direction][pair] : {};
     const result = await backtestPair(pair, {
       assetClass: asset,
       direction,
-      ...(DIRECTION_CONFIGS[direction] || {}),
-      ...overrides
+      ...(DIRECTION_CONFIGS[direction] || {})
     });
     if (!result) continue;
 

@@ -17,29 +17,56 @@ env/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
-# Data directory (often large or contains raw data)
+# Data directory (large cached candle data)
 data/
 
-# Generated Output Files (Backtest results, logs, etc.)
-*.csv
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Result directories (generated backtest output)
+results_long/
+results_short/
+results_forex/
+results_stocks/
+result_us_stocks_long/
+result_us_stocks_short/
+
+# Generated Output Files (backtest CSV/JSON)
 backtest_summary*.json
-prop_firm_report*.json
-mc_v2_report*.json
-mc_compounding_report*.json
 backtest_results*.csv
 diagnostic_expectancy*.csv
 entry_diagnostics*.csv
 equity_curve*.csv
 monte_carlo_dd*.csv
 trades_detailed*.csv
+prop_firm_report*.json
+mc_v2_report*.json
+mc_compounding_report*.json
+trading_analytics*.csv
+tp_efficiency*.csv
+mae_survival*.csv
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# Screening & Portfolio Pipeline Outputs
+screened_pairs_*.json
+screened_universe_*.json
+screening_daily_returns_*.json
+screening_results_*.json
+validated_universe_*.json
+deployment_universe_*.json
+portfolio_optimization_*.json
+wf_portfolio_*.json
+optimization_results*.json
+optimization_v2_results*.json
+fetch_progress.json
 
+# Combined Prop Firm Simulation Output
+combined_prop_firm_analysis.json
+combined_prop_firm_blueberry.json
 
-# Result directories
-result*/
+# Live bot state (paper trading)
+bot/live/state.json
+bot/live/trades_log.json
 
 # Archived/Temporary outputs
 _archive_root_outputs/
