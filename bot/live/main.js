@@ -154,7 +154,6 @@ async function runScanCycle(state) {
     await saveState(state);
 
     console.log(`[BOT] Scan complete. Found: ${signalsFound} | Blocked: ${signalsBlocked} | Entered: ${signalsEntered}`);
-    console.log(`[BOT] Next scan in ${LIVE_CONFIG.SCAN_INTERVAL_MS / 60000} minutes...`);
 }
 
 // ═══════════════════════════════════════
