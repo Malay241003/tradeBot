@@ -18,6 +18,33 @@ const INTERVAL_MAP = {
     '4h': '4h',
 };
 
+// ═══════════════════════════════════════
+// RATE LIMITER (TwelveData: 8 calls/min on Basic plan)
+// ═══════════════════════════════════════
+const TD_RATE_LIMIT = 7;           // Stay under 8/min with 1 buffer
+const TD_WINDOW_MS = 60 * 1000;    // 1 minute window
+const tdCallTimestamps = [];
+
+async function waitForTwelveDataSlot() {
+    while (true) {
+        const now = Date.now();
+        // Remove timestamps older than 1 minute
+        while (tdCallTimestamps.length > 0 && tdCallTimestamps[0] < now - TD_WINDOW_MS) {
+            tdCallTimestamps.shift();
+        }
+
+        if (tdCallTimestamps.length < TD_RATE_LIMIT) {
+            tdCallTimestamps.push(now);
+            return;
+        }
+
+        // Wait until the oldest call falls out of the window
+        const waitMs = tdCallTimestamps[0] + TD_WINDOW_MS - now + 100;
+        console.log(`[RATE] TwelveData rate limit — waiting ${(waitMs / 1000).toFixed(1)}s`);
+        await new Promise(r => setTimeout(r, waitMs));
+    }
+}
+
 /**
  * Fetch recent candles — Binance (crypto) or TwelveData (stocks)
  * Uses in-memory cache to avoid redundant API calls within the same scan
@@ -35,6 +62,7 @@ export async function getLiveCandles(symbol, interval, assetClass = 'crypto') {
     if (assetClass === 'crypto') {
         candles = await fetchBinanceLive(symbol, interval);
     } else {
+        await waitForTwelveDataSlot();  // Rate limit TwelveData calls
         candles = await fetchTwelveDataLive(symbol, interval);
     }
 
