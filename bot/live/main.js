@@ -192,8 +192,37 @@ async function main() {
     // Run first scan immediately
     await runScanCycle(state);
 
-    // Schedule recurring scans
-    setInterval(() => runScanCycle(state), LIVE_CONFIG.SCAN_INTERVAL_MS);
+    // Schedule scans aligned to candle close times (:00:10, :15:10, :30:10, :45:10)
+    scheduleCandleAligned(state);
+}
+
+/**
+ * Align scan timer to 15m candle close + 10 seconds
+ * Candles close at :00, :15, :30, :45 → we scan at :00:10, :15:10, :30:10, :45:10
+ */
+function scheduleCandleAligned(state) {
+    const OFFSET_MS = 10 * 1000;  // 10 seconds after candle close
+    const INTERVAL = 15 * 60 * 1000; // 15 minutes
+
+    function msUntilNextCandle() {
+        const now = Date.now();
+        const elapsed = now % INTERVAL;       // ms since last :00/:15/:30/:45
+        const nextClose = INTERVAL - elapsed;  // ms until next candle close
+        return nextClose + OFFSET_MS;           // + 10s buffer
+    }
+
+    function scheduleNext() {
+        const waitMs = msUntilNextCandle();
+        const nextTime = new Date(Date.now() + waitMs);
+        console.log(`[BOT] Next scan aligned to ${nextTime.toLocaleTimeString()} (in ${(waitMs / 1000).toFixed(0)}s)`);
+
+        setTimeout(async () => {
+            await runScanCycle(state);
+            scheduleNext(); // Reschedule for the next candle
+        }, waitMs);
+    }
+
+    scheduleNext();
 }
 
 process.on('SIGINT', () => {
