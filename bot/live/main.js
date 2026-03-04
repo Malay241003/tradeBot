@@ -213,7 +213,9 @@ function scheduleCandleAligned(state) {
     function scheduleNext() {
         const waitMs = msUntilNextCandle();
         const nextTime = new Date(Date.now() + waitMs);
-        console.log(`[BOT] Next scan aligned to ${nextTime.toLocaleTimeString()} (in ${(waitMs / 1000).toFixed(0)}s)`);
+        const istTime = nextTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+        const waitMin = (waitMs / 60000).toFixed(1);
+        console.log(`[BOT] Next scan aligned to ${istTime} IST (in ${waitMin} min)`);
 
         setTimeout(async () => {
             await runScanCycle(state);
