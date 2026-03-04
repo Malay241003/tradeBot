@@ -65,9 +65,11 @@ combined_prop_firm_analysis.json
 combined_prop_firm_blueberry.json
 
 # Live bot state (paper trading)
-bot/live/state.json
-bot/live/trades_log.json
+bot/live/data/
 
 # Archived/Temporary outputs
 _archive_root_outputs/
 tp_comparison/
+
+# Scratch/temp verification scripts
+verify_bot.mjs

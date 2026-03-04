@@ -67,6 +67,7 @@ export async function getBinanceCandles(symbol, interval, months = 18) {
     try {
       const cached = JSON.parse(fs.readFileSync(file, "utf8"));
       if (isCacheValid(cached, interval)) {
+        console.log(`[BINANCE] ${symbol} ${interval}: ${cached.length} candles (cached)`);
         return cached;
       }
     } catch {

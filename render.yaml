@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: tradebot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node bot/live/main.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: TWELVEDATA_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production

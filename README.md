@@ -146,13 +146,27 @@ Runs 5,000 Monte Carlo simulations of a Blueberry Funded 1-Step challenge ($5,00
 
 **Latest result: 72.68% pass rate** (3,634 / 5,000 simulations passed)
 
-### Run Live Bot
+### Run Live Paper Trading Bot
 
 ```bash
-npm start
+npm run live
 ```
 
-> ⚠️ Requires valid API keys. Currently in stub mode — live strategy wiring is in progress.
+Starts the Blueberry Funded 1-Step paper trading bot:
+- Scans 42 pairs every 15 minutes (18 crypto long + 14 crypto short + 10 US stocks long)
+- Enforces all 15 Blueberry Funded rules (daily DD, static DD, leverage, lot limits, etc.)
+- Virtual $5,000 balance, targets $5,500 (10% profit)
+- Logs to PostgreSQL (Render) or JSON files (local)
+- US stocks only scanned during market hours (saves TwelveData credits)
+
+### Deploy to Render.com (Free)
+
+1. Create a [Neon PostgreSQL](https://neon.tech) database (free) → copy connection string
+2. Push to GitHub → connect repo on [Render.com](https://render.com)
+3. Set environment variables on Render:
+   - `DATABASE_URL` → Neon connection string
+   - `TWELVEDATA_API_KEY` → your TwelveData key
+4. Render auto-deploys from `render.yaml` — bot starts scanning
 
 ---
 
