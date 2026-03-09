@@ -151,8 +151,11 @@ export async function updateBalanceAfterTrade(state, netPnL, trade) {
         console.log(`\n💀 CHALLENGE FAILED — Daily DD. Balance: $${state.balance.toFixed(2)}`);
     }
 
-    // Add to closed trades
+    // Add to closed trades (capped to last 50 to prevent unbounded growth)
     state.closedTrades.push(trade);
+    if (state.closedTrades.length > 50) {
+        state.closedTrades = state.closedTrades.slice(-50);
+    }
 
     await saveState(state);
     await appendTradeLog(trade);

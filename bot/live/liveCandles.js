@@ -3,7 +3,6 @@
 // Only fetches latest 300 candles (enough for indicator warm-up)
 
 import axios from 'axios';
-import { getTwelveDataCandles } from '../adapters/twelvedata.js';
 
 const BINANCE_BASE = 'https://api.binance.com';
 const FETCH_COUNT = 300;   // ~3 days of 15m candles, plenty for EMA200
@@ -126,6 +125,7 @@ async function fetchTwelveDataLive(symbol, interval) {
                 apikey: API_KEY,
                 format: 'JSON',
                 order: 'ASC',
+                timezone: 'UTC',
             },
             timeout: 15000,
         });
@@ -136,7 +136,7 @@ async function fetchTwelveDataLive(symbol, interval) {
         }
 
         const candles = (res.data.values || []).map(v => ({
-            time: new Date(v.datetime).getTime(),
+            time: new Date(`${v.datetime.replace(' ', 'T')}Z`).getTime(),
             open: +v.open,
             high: +v.high,
             low: +v.low,

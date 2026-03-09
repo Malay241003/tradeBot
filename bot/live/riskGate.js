@@ -114,13 +114,16 @@ export function evaluate(signal, state) {
         }
     }
 
+    // Recalculate riskAmount in case positionValue was capped by leverage or lot size limits
+    const finalRiskAmount = positionValue * slPct;
+
     // ═══════════════════════════════════════
     // 8. MARTINGALE CHECK (no 50%+ increase after loss)
     // ═══════════════════════════════════════
     if (state.closedTrades.length > 0) {
         const lastTrade = state.closedTrades[state.closedTrades.length - 1];
         if (lastTrade.netPnL < 0 && lastTrade.riskAmount) {
-            if (riskAmount > lastTrade.riskAmount * 1.5) {
+            if (finalRiskAmount > lastTrade.riskAmount * 1.5) {
                 return deny('Risk increased >50% after a loss — anti-martingale rule.');
             }
         }
@@ -130,7 +133,7 @@ export function evaluate(signal, state) {
     // APPROVED — attach calculated values
     // ═══════════════════════════════════════
     result.positionValue = positionValue;
-    result.riskAmount = riskAmount;
+    result.riskAmount = finalRiskAmount;
     result.leverage = leverage;
     result.lotSize = positionValue / signal.entryPrice;
 

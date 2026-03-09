@@ -36,12 +36,23 @@ async function checkPosition(pos, state) {
 
     if (!candles15m || candles15m.length < 10) return;
 
-    const i = candles15m.length - 1;
+    // Find the last FULLY CLOSED 15m candle
+    const now = Date.now();
+    let i = candles15m.length - 1;
+    while (i >= 0 && now < candles15m[i].time + 15 * 60 * 1000) {
+        i--;
+    }
+
+    if (i < 0) return;
     const c = candles15m[i];
     const currentPrice = c.close;
     const riskPerUnit = Math.abs(pos.initialSl - pos.entryPrice);
 
-    pos.barsHeld++;
+    // Only increment barsHeld when we see a genuinely NEW closed candle
+    if (!pos.lastCheckedCandleTime || c.time > pos.lastCheckedCandleTime) {
+        pos.barsHeld++;
+        pos.lastCheckedCandleTime = c.time;
+    }
 
     // Calculate current R
     let favorableR, adverseR;

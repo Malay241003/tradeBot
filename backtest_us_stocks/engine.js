@@ -105,7 +105,8 @@ export async function backtestPair(pair, opts = {}) {
   for (let i = startOffset; i < candles15m.length; i++) {
     const c = candles15m[i];
 
-    while (h1 + 1 < candles1h.length && candles1h[h1 + 1].time <= c.time) h1++;
+    // Only advance h1 when the next 1h candle is FULLY CLOSED (no look-ahead)
+    while (h1 + 1 < candles1h.length && candles1h[h1 + 1].time + 60 * 60 * 1000 <= c.time) h1++;
     if (h1 < 50) continue;
 
     // ===============================

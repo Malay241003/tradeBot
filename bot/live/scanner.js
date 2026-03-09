@@ -43,15 +43,23 @@ export async function scanPair(pair, direction, assetClass) {
         const ind15mArr = precomputeIndicators(candles15m);
         const ind1hArr = precomputeIndicators(candles1h);
 
-        // Align 1h index to the latest 15m candle
-        const latestTime = candles15m[candles15m.length - 1].time;
+        // 1. Find the last FULLY CLOSED 15m candle
+        const now = Date.now();
+        let i = candles15m.length - 1;
+        // A candle is closed if current time >= candle open time + 15 mins
+        while (i >= 0 && now < candles15m[i].time + 15 * 60 * 1000) {
+            i--;
+        }
+
+        if (i < 50) return null;
+
+        // 2. Find the last FULLY CLOSED 1h candle
         let h1 = candles1h.length - 1;
-        while (h1 > 0 && candles1h[h1].time > latestTime) h1--;
+        while (h1 > 0 && now < candles1h[h1].time + 60 * 60 * 1000) {
+            h1--;
+        }
 
         if (h1 < 50) return null;
-
-        // Check signal at the LATEST bar only
-        const i = candles15m.length - 1;
 
         const signal = checkSignal({
             pair,
