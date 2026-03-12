@@ -1,7 +1,7 @@
 export const CONFIG = {
   CAPITAL: 10000,
   MONTHS: 18,          // unused — data fetches from 2018-01-01
-  RISK_PER_TRADE: 50,  // 1R
+  RISK_PER_TRADE: 50,  // 1R (0.5% of 10K)
   // TP_R moved to directional config
   MIN_HISTORY_15M: 1000,
   MIN_HISTORY_1H: 200,

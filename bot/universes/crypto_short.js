@@ -1,22 +1,15 @@
 // bot/universes/crypto_short.js
 // Final deployment universe — SHORT direction
-// Filtered: exp ≥ 0.4R from statistical screen (top-100 pipeline)
-// Generated: 2026-03-02
-// Total: 14 pairs
+// Filtered: exp > 0.3R, trades ≥ 10, WR ≥ 25%, corr < 0.7
+// Source: top-200 screening pipeline (screening_results_short.json)
+// Generated: 2026-03-11
+// Total: 6 pairs
 
 export const CRYPTO_SHORT = [
-    "B-DASHUSDT",   // exp: 1.23R
-    "B-UNIUSDT",    // exp: 1.08R
-    "B-BCHUSDT",    // exp: 0.91R
-    "B-ZECUSDT",    // exp: 0.91R
-    "B-XRPUSDT",    // exp: 0.88R
-    "B-OGNUSDT",    // exp: 0.88R
-    "B-LTCUSDT",    // exp: 0.87R
-    "B-VETUSDT",    // exp: 0.83R
-    "B-ROSEUSDT",   // exp: 0.80R
-    "B-CAKEUSDT",   // exp: 0.66R
-    "B-ETCUSDT",    // exp: 0.59R
-    "B-FETUSDT",    // exp: 0.52R
-    "B-FILUSDT",    // exp: 0.51R
-    "B-ATOMUSDT",   // exp: 0.44R
+    "B-MOVRUSDT",     // exp: 1.12R  WR: 28.6%  trades: 14
+    "B-FETUSDT",      // exp: 1.11R  WR: 28.6%  trades: 14
+    "B-SNXUSDT",      // exp: 0.82R  WR: 30.0%  trades: 10
+    "B-ATOMUSDT",     // exp: 0.72R  WR: 40.0%  trades: 15
+    "B-TRBUSDT",      // exp: 0.39R  WR: 29.4%  trades: 17
+    "B-NMRUSDT",      // exp: 0.32R  WR: 30.8%  trades: 26
 ];

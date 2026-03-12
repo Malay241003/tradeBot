@@ -19,6 +19,7 @@ import { CONFIG, DIRECTION_CONFIGS } from "./config.js";
 // 🌎 MULTI-ASSET UNIVERSES
 import { FOREX_UNIVERSE } from "../bot/universes/forex.js";
 import { STOCKS_UNIVERSE } from "../bot/universes/stocks.js";
+import { STOCKS_LONG } from "../bot/universes/stocks_long.js";
 
 import fs from "fs";
 
@@ -77,8 +78,8 @@ async function getUniverse(assetClass) {
       return FOREX_UNIVERSE;
 
     case "stocks":
-      console.log(`[UNIVERSE] US Stocks — ${STOCKS_UNIVERSE.length} symbols`);
-      return STOCKS_UNIVERSE;
+      console.log(`[UNIVERSE] US Stocks LONG — ${STOCKS_LONG.length} symbols`);
+      return STOCKS_LONG;
 
     default:
       return [];

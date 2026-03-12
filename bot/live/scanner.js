@@ -7,9 +7,7 @@ import { precomputeIndicators } from '../../shared/precomputeIndicators.js';
 import { checkSignal } from './signalEngine.js';
 import { LIVE_CONFIG } from './config.js';
 
-// Minimum candle count for indicator warm-up
-const MIN_CANDLES_15M = 200;
-const MIN_CANDLES_1H = 100;
+const MIN_CANDLES_15M = 100;
 
 // Use live fetcher on Render (no disk), full adapter locally
 const IS_RENDER = !!process.env.RENDER;
@@ -32,12 +30,8 @@ export async function scanPair(pair, direction, assetClass) {
         const candles15m = await fetchCandles(symbol, '15m', assetClass);
         const candles1h = await fetchCandles(symbol, '1h', assetClass);
 
-        if (!candles15m || candles15m.length < MIN_CANDLES_15M) {
-            return null;
-        }
-        if (!candles1h || candles1h.length < MIN_CANDLES_1H) {
-            return null;
-        }
+        if (!candles15m || candles15m.length < MIN_CANDLES_15M) return null;
+        if (!candles1h || candles1h.length < 50) return null;
 
         // Compute indicators
         const ind15mArr = precomputeIndicators(candles15m);
@@ -53,25 +47,16 @@ export async function scanPair(pair, direction, assetClass) {
 
         if (i < 50) return null;
 
-        // 2. Find the last FULLY CLOSED 1h candle
-        let h1 = candles1h.length - 1;
-        while (h1 > 0 && now < candles1h[h1].time + 60 * 60 * 1000) {
-            h1--;
-        }
-
-        if (h1 < 50) return null;
-
         const signal = checkSignal({
             pair,
             symbol,
             direction,
             assetClass,
             candles15m,
-            candles1h,
             ind15mArr,
+            candles1h,
             ind1hArr,
-            i,
-            h1,
+            i
         });
 
         return signal;
@@ -86,6 +71,14 @@ export async function scanPair(pair, direction, assetClass) {
  * Check if current UTC hour is within US market hours
  */
 export function isUSMarketOpen() {
-    const hour = new Date().getUTCHours();
-    return hour >= LIVE_CONFIG.US_MARKET_OPEN_UTC && hour < LIVE_CONFIG.US_MARKET_CLOSE_UTC;
+    const d = new Date();
+    const hour = d.getUTCHours();
+    const min = d.getUTCMinutes();
+    
+    // Core hours: 14:30 UTC to 21:00 UTC (9:30 AM to 4:00 PM EST)
+    if (hour < LIVE_CONFIG.US_MARKET_OPEN_UTC) return false;
+    if (hour === LIVE_CONFIG.US_MARKET_OPEN_UTC && min < 30) return false;
+    if (hour >= LIVE_CONFIG.US_MARKET_CLOSE_UTC) return false;
+    
+    return true;
 }

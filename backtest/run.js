@@ -33,6 +33,8 @@ function parseArgs() {
   let asset = "crypto"; // default
   let direction = "short"; // default
   let universe = "original"; // "original" (14 legacy), "top100", or "validated" (WF-validated)
+  let skipVol = false;
+  let skipWf = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--asset" && args[i + 1]) {
@@ -52,6 +54,14 @@ function parseArgs() {
     } else if (args[i].startsWith("--universe=")) {
       universe = args[i].split("=")[1].toLowerCase();
     }
+
+    if (args[i] === "--skip-vol") {
+      skipVol = true;
+    }
+
+    if (args[i] === "--skip-wf") {
+      skipWf = true;
+    }
   }
 
   const validAssets = ["crypto", "forex", "stocks"];
@@ -66,7 +76,7 @@ function parseArgs() {
     process.exit(1);
   }
 
-  return { asset, direction, universe };
+  return { asset, direction, universe, skipVol, skipWf };
 }
 
 // =======================================
@@ -101,6 +111,8 @@ async function getUniverse(assetClass, universeType, direction) {
         console.log(`[UNIVERSE] Crypto Top 100 — ${CRYPTO_TOP100.length} pairs`);
         return CRYPTO_TOP100;
       }
+      if (universeType === "crypto_long") return CRYPTO_LONG;
+      if (universeType === "crypto_short") return CRYPTO_SHORT;
       if (universeType === "legacy") {
         // Old 14-coin hardcoded universe
         return buildUniverse();
@@ -149,7 +161,7 @@ function getOutputDir(asset, direction) {
 // MAIN BACKTEST
 // =======================================
 async function runBacktest() {
-  const { asset, direction, universe: universeType } = parseArgs();
+  const { asset, direction, universe: universeType, skipVol, skipWf } = parseArgs();
   const outputDir = getOutputDir(asset, direction);
 
   console.log(`\n╔══════════════════════════════════════════════════════╗`);
@@ -171,6 +183,7 @@ async function runBacktest() {
     const result = await backtestPair(pair, {
       assetClass: asset,
       direction,
+      SKIP_VOL_EXPANSION: skipVol,
       ...(DIRECTION_CONFIGS[direction] || {})
     });
     if (!result) continue;
@@ -235,7 +248,7 @@ async function runBacktest() {
   if (outputDir !== ".") process.chdir(origCwd);
 
   // 🔁 WALK-FORWARD (PER PAIR) — only for crypto (needs getBinanceCandles in walkForward.js)
-  if (asset === "crypto") {
+  if (asset === "crypto" && !skipWf) {
     console.log("\n===== WALK-FORWARD VALIDATION =====");
 
     for (const pair of universe) {

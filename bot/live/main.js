@@ -19,13 +19,13 @@ import { render } from './dashboard.js';
 // ═══════════════════════════════════════
 import { CRYPTO_LONG } from '../universes/crypto_long.js';
 import { CRYPTO_SHORT } from '../universes/crypto_short.js';
-import { STOCKS_UNIVERSE } from '../universes/stocks.js';
+import { STOCKS_LONG } from '../universes/stocks_long.js';
 
 function buildScanList() {
     const list = [];
     for (const pair of CRYPTO_LONG) list.push({ pair, direction: 'long', assetClass: 'crypto' });
     for (const pair of CRYPTO_SHORT) list.push({ pair, direction: 'short', assetClass: 'crypto' });
-    for (const stock of STOCKS_UNIVERSE) list.push({ pair: stock, direction: 'long', assetClass: 'stocks' });
+    for (const stock of STOCKS_LONG) list.push({ pair: stock, direction: 'long', assetClass: 'stocks' });
     return list;
 }
 
@@ -171,7 +171,7 @@ async function main() {
     const dbOk = await initDB();
     console.log(`[BOT] Database: ${dbOk ? '✅ PostgreSQL connected' : '⚠️  JSON fallback mode'}`);
 
-    console.log(`[BOT] Universe: ${CRYPTO_LONG.length} crypto long + ${CRYPTO_SHORT.length} crypto short + ${STOCKS_UNIVERSE.length} stocks long`);
+    console.log(`[BOT] Universe: ${CRYPTO_LONG.length} crypto long + ${CRYPTO_SHORT.length} crypto short + ${STOCKS_LONG.length} stocks long`);
     console.log(`[BOT] Total scan pairs: ${SCAN_LIST.length}`);
     console.log(`[BOT] Scan interval: ${LIVE_CONFIG.SCAN_INTERVAL_MS / 60000} minutes`);
     console.log('');
@@ -201,7 +201,7 @@ async function main() {
  */
 function scheduleCandleAligned(state) {
     const OFFSET_MS = 10 * 1000;  // 10 seconds after candle close
-    const INTERVAL = 15 * 60 * 1000; // 15 minutes
+    const INTERVAL = 15 * 60 * 1000; // 15 minutes (conserves TwelveData credits)
 
     function msUntilNextCandle() {
         const now = Date.now();

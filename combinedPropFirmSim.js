@@ -41,7 +41,7 @@ const PROP_FIRM = {
 };
 
 const NUM_SIMULATIONS = 5000;
-const TRADES_PER_SIMULATION = 60; // Represents an average number of trades in 60-day period
+const TRADES_PER_SIMULATION = 21; // Accurately represents ~10.5 trades per month in a 60-day period
 
 let allTrades = [];
 

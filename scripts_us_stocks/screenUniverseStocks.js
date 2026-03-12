@@ -19,7 +19,7 @@
 import { backtestPair } from "../backtest_us_stocks/engine.js";
 import { computeMetrics } from "../backtest_us_stocks/metrics.js";
 import { DIRECTION_CONFIGS } from "../backtest_us_stocks/config.js";
-import { STOCKS_TOP_100 } from "../bot/universes/stocks.js";
+import { STOCKS_TOP_150 } from "../bot/universes/stocks.js";
 import fs from "fs";
 import path from "path";
 
@@ -140,7 +140,7 @@ async function main() {
     console.log("╔══════════════════════════════════════════════════════╗");
     console.log(`║  🔬  US STOCK SCREENING — ${direction.toUpperCase().padEnd(25)}║`);
     console.log("╚══════════════════════════════════════════════════════╝\n");
-    console.log(`Testing ${STOCKS_TOP_100.length} stocks with FIXED macro params (no optimization)\n`);
+    console.log(`Testing ${STOCKS_TOP_150.length} stocks with FIXED macro params (no optimization)\n`);
     console.log(`Direction config:`, DIRECTION_CONFIGS[direction]);
     console.log("");
 
@@ -148,10 +148,10 @@ async function main() {
     let processed = 0;
     let skipped = 0;
 
-    for (const symbol of STOCKS_TOP_100) {
+    for (const symbol of STOCKS_TOP_150) {
         processed++;
-        const pct = ((processed / STOCKS_TOP_100.length) * 100).toFixed(0);
-        process.stdout.write(`\r[${processed}/${STOCKS_TOP_100.length}] (${pct}%) Screening ${symbol}...         `);
+        const pct = ((processed / STOCKS_TOP_150.length) * 100).toFixed(0);
+        process.stdout.write(`\r[${processed}/${STOCKS_TOP_150.length}] (${pct}%) Screening ${symbol}...         `);
 
         try {
             const result = await backtestPair(symbol, {

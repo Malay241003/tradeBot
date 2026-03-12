@@ -1,5 +1,5 @@
 // scripts/fetch_top100_twelvedata.js
-// Resumable downloader for Top 100 US stocks via TwelveData.
+// Resumable downloader for Top 150 US stocks via TwelveData.
 // SAFE to re-run every day — it skips already-completed stocks.
 // Exits cleanly when the 800-credit daily limit is hit.
 
@@ -7,18 +7,41 @@ import { getCandles } from "../bot/adapters/index.js";
 import fs from "fs";
 import path from "path";
 
-// ─── S&P 100 Universe ────────────────────────────────────────────────────────
-const TOP_100_STOCKS = [
-    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK.B", "LLY", "UNH",
-    "V", "JPM", "JNJ", "WMT", "PG", "MA", "XOM", "HD", "CVX", "MRK",
-    "ABBV", "COST", "PEP", "AVGO", "KO", "TXN", "TMO", "WFC", "CSCO", "MCD",
-    "CRM", "DIS", "ADBE", "NFLX", "ABT", "AMD", "QCOM", "ORCL", "CMCSA", "IBM",
-    "NOW", "PFE", "CAT", "BA", "UNP", "PM", "AMGN", "COP", "HON", "SPGI",
-    "RTX", "GE", "INTC", "LOW", "GS", "BKNG", "LMT", "SYK", "ELV", "MDT",
-    "TJX", "BLK", "AXP", "ISRG", "AMT", "GILD", "CB", "C", "REGN", "ADP",
-    "SCHW", "VRTX", "MMC", "SLB", "MO", "EOG", "SO", "CI", "BDX", "BSX",
-    "CVS", "DUK", "PNC", "ZTS", "FCX", "T", "CME", "ITW", "NOC", "CSX",
-    "EQIX", "CL", "MMM", "USB", "APD", "EMR", "WM", "NSC", "AON", "MAR"
+// ─── S&P 100 + 50 Growth/Mid-Cap ──────────────────────────────────────────────
+const TOP_150_STOCKS = [
+    // Mega-cap Tech
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO",
+    // Healthcare
+    "LLY", "UNH", "JNJ", "ABBV", "MRK", "TMO", "ABT", "AMGN",
+    "GILD", "REGN", "MDT", "SYK", "BSX", "ZTS", "BDX", "ISRG",
+    "CI", "ELV", "CVS",
+    // Financials
+    "JPM", "V", "MA", "WFC", "GS", "SPGI", "BLK", "AXP",
+    "SCHW", "MMC", "AON", "CB", "CME", "C", "PNC", "USB",
+    "ADP",
+    // Consumer
+    "WMT", "PG", "KO", "PEP", "COST", "MCD", "TJX", "PM",
+    "MO", "CL", "MAR",
+    // Energy
+    "XOM", "CVX", "COP", "EOG", "SLB", "FCX",
+    // Industrials
+    "HD", "HON", "CAT", "UNP", "RTX", "GE", "LOW", "LMT",
+    "NOC", "ITW", "CSX", "NSC", "EMR", "WM", "APD",
+    // Tech / Semi
+    "TXN", "IBM", "QCOM", "ORCL", "AMD", "INTC", "CSCO", "ADBE",
+    "CRM", "NFLX", "NOW",
+    // Comms / Media
+    "DIS", "CMCSA", "T",
+    // Utilities / REIT
+    "SO", "DUK", "AMT", "EQIX",
+    // Diversified
+    "BRK.B", "BKNG", "VRTX", "PFE", "BA", "MMM",
+    // Expansion: 50 Growth / Mid-Cap Tech
+    "PANW", "SNPS", "CDNS", "FTNT", "MRVL", "LRCX", "KLAC", "AMAT", "MU", "ON",
+    "ABNB", "UBER", "DKNG", "PLTR", "CRWD", "ZS", "SHOP", "MELI", "TTD", "COIN",
+    "SNOW", "TEAM", "DASH", "NET", "DDOG", "HUBS", "VEEV", "PAYC", "OKTA", "TWLO",
+    "SQ", "PYPL", "WDAY", "APP", "PINS", "SNAP", "ROKU", "SE", "GRAB", "NU",
+    "SOFI", "HOOD", "RIVN", "LCID", "NIO", "LI", "XPEV", "BILL", "MNDY", "CELH"
 ];
 
 const CACHE_DIR = path.join("data", "candles");
@@ -44,19 +67,19 @@ function cacheExists(symbol, interval) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function run() {
     console.log(`\n╔══════════════════════════════════════════════════════╗`);
-    console.log(`║  📊  TOP 100 US STOCKS  —  TwelveData Downloader    ║`);
+    console.log(`║  📊  TOP 150 US STOCKS  —  TwelveData Downloader    ║`);
     console.log(`╚══════════════════════════════════════════════════════╝\n`);
     console.log(`Note: Free tier = 800 credits/day. Script exits cleanly`);
     console.log(`      when the limit hits and resumes next run.\n`);
 
     const progress = loadProgress();
-    const pending = TOP_100_STOCKS.filter(s => !progress.completed.includes(s));
+    const pending = TOP_150_STOCKS.filter(s => !progress.completed.includes(s));
 
-    console.log(`✅ Completed : ${progress.completed.length}/${TOP_100_STOCKS.length}`);
+    console.log(`✅ Completed : ${progress.completed.length}/${TOP_150_STOCKS.length}`);
     console.log(`🔄 Remaining : ${pending.length}\n`);
 
     if (pending.length === 0) {
-        console.log("🎉 All 100 stocks are downloaded. You can run the backtest now.");
+        console.log("🎉 All 150 stocks are downloaded. You can run the backtest now.");
         return;
     }
 
@@ -73,7 +96,7 @@ async function run() {
         // If 0 candles returned AND no cache file → daily limit hit
         if (c15.length === 0 && !cacheExists(symbol, "15m")) {
             console.error(`\n🛑 DAILY CREDIT LIMIT HIT — exiting cleanly.`);
-            console.error(`   ${progress.completed.length}/${TOP_100_STOCKS.length} stocks done.`);
+            console.error(`   ${progress.completed.length}/${TOP_150_STOCKS.length} stocks done.`);
             console.error(`   Run this script again tomorrow to continue.\n`);
             process.exit(0);        // clean exit — 0 so npm doesn't flag as error
         }
@@ -87,7 +110,7 @@ async function run() {
 
         if (c1.length === 0 && !cacheExists(symbol, "1h")) {
             console.error(`\n🛑 DAILY CREDIT LIMIT HIT — exiting cleanly.`);
-            console.error(`   ${progress.completed.length}/${TOP_100_STOCKS.length} stocks done.`);
+            console.error(`   ${progress.completed.length}/${TOP_150_STOCKS.length} stocks done.`);
             console.error(`   Run this script again tomorrow to continue.\n`);
             process.exit(0);
         }
@@ -99,13 +122,13 @@ async function run() {
         if (ok15 && ok1h) {
             progress.completed.push(symbol);
             saveProgress(progress.completed);
-            console.log(`   ✅ ${symbol} saved (${progress.completed.length}/${TOP_100_STOCKS.length})`);
+            console.log(`   ✅ ${symbol} saved (${progress.completed.length}/${TOP_150_STOCKS.length})`);
         } else {
             console.log(`   ⚠️  ${symbol} — incomplete data, will retry next run.`);
         }
     }
 
-    console.log(`\n🎉 Download complete! All ${TOP_100_STOCKS.length} stocks ready.`);
+    console.log(`\n🎉 Download complete! All ${TOP_150_STOCKS.length} stocks ready.`);
     console.log(`   Next: run the backtest, then portfolio_optimization.py\n`);
 }
 

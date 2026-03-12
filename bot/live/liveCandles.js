@@ -7,9 +7,13 @@ import axios from 'axios';
 const BINANCE_BASE = 'https://api.binance.com';
 const FETCH_COUNT = 300;   // ~3 days of 15m candles, plenty for EMA200
 
-// In-memory cache with 14-min TTL (refreshes each scan cycle)
+// In-memory cache
 const cache = new Map();
-const CACHE_TTL_MS = 14 * 60 * 1000;
+// TTL: 14 mins for 15m candles, 59 mins for 1h candles
+function getCacheTtl(interval) {
+    if (interval === '1h') return 59 * 60 * 1000;
+    return 14 * 60 * 1000; // default 14m
+}
 
 const INTERVAL_MAP = {
     '15m': '15m',
@@ -51,8 +55,9 @@ async function waitForTwelveDataSlot() {
 export async function getLiveCandles(symbol, interval, assetClass = 'crypto') {
     const key = `${symbol}_${interval}_${assetClass}`;
     const cached = cache.get(key);
+    const ttl = getCacheTtl(interval);
 
-    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    if (cached && Date.now() - cached.fetchedAt < ttl) {
         return cached.candles;
     }
 
