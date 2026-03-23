@@ -1,19 +1,13 @@
 // bot/live/positionManager.js
 // Manages open positions — checks SL/TP/trailing/scale-ins/time exit
+// Crypto: reads from WebSocket in-memory store (instant)
+// Stocks: reads from REST + TwelveData
 
-import { getLiveCandles } from './liveCandles.js';
-import { getCandles } from '../adapters/index.js';
+import { getUnifiedCandles } from './liveCandles.js';
 import { precomputeIndicators } from '../../shared/precomputeIndicators.js';
 import { liquidationProxy, bullishLiquidationProxy } from '../../shared/orderBookTrigger.js';
 import { closePosition } from './paperExec.js';
 import { LIVE_CONFIG } from './config.js';
-
-const IS_RENDER = !!process.env.RENDER;
-
-async function fetchCandles(symbol, interval, assetClass) {
-    if (IS_RENDER) return getLiveCandles(symbol, interval, assetClass);
-    return getCandles(symbol, interval, assetClass);
-}
 
 /**
  * Check all open positions against current market prices
@@ -32,7 +26,7 @@ export async function checkAllPositions(state) {
 
 async function checkPosition(pos, state) {
     const symbol = pos.assetClass === 'crypto' ? pos.pair.replace('B-', '') : pos.symbol;
-    const candles15m = await fetchCandles(symbol, '15m', pos.assetClass);
+    const candles15m = await getUnifiedCandles(symbol, '15m', pos.assetClass);
 
     if (!candles15m || candles15m.length < 10) return;
 

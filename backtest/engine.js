@@ -109,20 +109,47 @@ export async function backtestPair(pair, opts = {}) {
       maxFavorableR = Math.max(maxFavorableR, favorableR);
       maxAdverseR = Math.max(maxAdverseR, adverseR);
 
-      // TRAILING STOP CHECK
+      // MULTI-TIER TRAILING STOP
       const useTrailing = opts.USE_TRAILING_STOP !== undefined ? opts.USE_TRAILING_STOP : (CONFIG.USE_TRAILING_STOP || false);
-      const trailAct = opts.TRAILING_ACTIVATION_R !== undefined ? opts.TRAILING_ACTIVATION_R : (CONFIG.TRAILING_ACTIVATION_R || 2.0);
-      const trailMult = opts.TRAILING_ATR_MULT !== undefined ? opts.TRAILING_ATR_MULT : (CONFIG.TRAILING_ATR_MULT || 2.5);
 
-      if (useTrailing && maxFavorableR >= trailAct) {
-        if (direction === "short") {
-          tp = -Infinity; // Disable hard TP
-          const newSl = c.high + trailMult * ind15mArr[i].atr;
-          if (newSl < sl) sl = newSl;
-        } else {
-          tp = Infinity; // Disable hard TP
-          const newSl = c.low - trailMult * ind15mArr[i].atr;
-          if (newSl > sl) sl = newSl;
+      if (useTrailing) {
+        // Tier config: [activationR, atrMultiplier]
+        // At +1R: move SL to breakeven (entry price) — lock in 0R
+        // At +2R: trail 2.0 ATRs behind — capture intermediate wins
+        // At +3R: trail 1.5 ATRs behind — tighten further for runners
+        const tiers = [
+          { activateR: 1.0, atrMult: null, lockR: 0 },   // Breakeven lock
+          { activateR: 2.0, atrMult: 2.0,  lockR: null }, // ATR trail
+          { activateR: 3.0, atrMult: 1.5,  lockR: null }, // Tighter ATR trail
+        ];
+
+        // Find the highest tier we've reached
+        let activeTier = null;
+        for (let t = tiers.length - 1; t >= 0; t--) {
+          if (maxFavorableR >= tiers[t].activateR) {
+            activeTier = tiers[t];
+            break;
+          }
+        }
+
+        if (activeTier) {
+          if (activeTier.atrMult !== null) {
+            // ATR-based trailing
+            if (direction === "short") {
+              const newSl = c.low + activeTier.atrMult * ind15mArr[i].atr;
+              if (newSl < sl) sl = newSl;
+            } else {
+              const newSl = c.high - activeTier.atrMult * ind15mArr[i].atr;
+              if (newSl > sl) sl = newSl;
+            }
+          } else if (activeTier.lockR !== null) {
+            // Fixed R-lock (breakeven)
+            const lockPrice = direction === "short"
+              ? entry - activeTier.lockR * riskPerUnit
+              : entry + activeTier.lockR * riskPerUnit;
+            if (direction === "short" && lockPrice < sl) sl = lockPrice;
+            if (direction === "long" && lockPrice > sl) sl = lockPrice;
+          }
         }
       }
 

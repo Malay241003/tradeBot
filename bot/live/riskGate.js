@@ -33,13 +33,13 @@ export function evaluate(signal, state) {
     }
 
     // ═══════════════════════════════════════
-    // 2. WEEKEND FILTER
+    // 2. WEEKEND FILTER (STOCKS ONLY — crypto trades 24/7)
     // ═══════════════════════════════════════
-    if (LIVE_CONFIG.SKIP_WEEKEND_ENTRIES) {
+    if (LIVE_CONFIG.SKIP_WEEKEND_ENTRIES_STOCKS && signal.assetClass === 'stocks') {
         const day = new Date().getUTCDay();
         if (day === 0 || day === 6) {
             state.stats.weekendSkips++;
-            return deny('Weekend entry blocked (Sat/Sun UTC).');
+            return deny('Weekend entry blocked for stocks (markets closed).');
         }
     }
 

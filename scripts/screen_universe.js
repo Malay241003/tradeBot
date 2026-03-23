@@ -18,7 +18,7 @@
 import { backtestPair } from "../backtest/engine.js";
 import { computeMetrics } from "../backtest/metrics.js";
 import { DIRECTION_CONFIGS } from "../backtest/config.js";
-import { CRYPTO_TOP200 } from "../bot/universes/crypto_top200.js";
+import { CRYPTO_TOP400 } from "../bot/universes/crypto_top400.js";
 import fs from "fs";
 
 function parseDirection() {
@@ -118,7 +118,7 @@ async function main() {
     console.log("╔══════════════════════════════════════════════════════╗");
     console.log(`║  🔬  UNIVERSE SCREENING — ${direction.toUpperCase().padEnd(25)}║`);
     console.log("╚══════════════════════════════════════════════════════╝\n");
-    console.log(`Testing ${CRYPTO_TOP200.length} coins with FIXED macro params (no optimization)\n`);
+    console.log(`Testing ${CRYPTO_TOP400.length} coins with FIXED macro params (no optimization)\n`);
     console.log(`Direction config:`, DIRECTION_CONFIGS[direction]);
     console.log("");
 
@@ -127,10 +127,10 @@ async function main() {
     let skipped = 0;
     let insufficientData = 0;
 
-    for (const pair of CRYPTO_TOP200) {
+    for (const pair of CRYPTO_TOP400) {
         processed++;
-        const pct = ((processed / CRYPTO_TOP200.length) * 100).toFixed(0);
-        process.stdout.write(`\r[${processed}/${CRYPTO_TOP200.length}] (${pct}%) Screening ${pair}...         `);
+        const pct = ((processed / CRYPTO_TOP400.length) * 100).toFixed(0);
+        process.stdout.write(`\r[${processed}/${CRYPTO_TOP400.length}] (${pct}%) Screening ${pair}...         `);
 
         try {
             const result = await backtestPair(pair, {

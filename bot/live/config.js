@@ -55,6 +55,8 @@ export const LIVE_CONFIG = {
     // ═══════════════════════════════════════
     TP_R: 5.0,
     MACRO_EMA: 'ema200',
+    PULLBACK_EMA: 'ema20',           // Must match backtest config (was falling back to ema50!)
+    ADX_THRESHOLD: 0,                // Disabled, matches backtest
     MAX_BARS_IN_TRADE: 672,          // 7 days in 15m bars
     SL_ATR_BUFFER_SHORT: 0.5,
     SL_ATR_BUFFER_LONG: 1.0,
@@ -66,7 +68,7 @@ export const LIVE_CONFIG = {
     // SCANNING
     // ═══════════════════════════════════════
     SCAN_INTERVAL_MS: 15 * 60 * 1000,   // 15 minutes
-    SKIP_WEEKEND_ENTRIES: true,
+    SKIP_WEEKEND_ENTRIES_STOCKS: true,  // Only skip weekends for stocks (markets closed). Crypto trades 24/7.
 
     // US market hours (UTC) for TwelveData credit optimization
     US_MARKET_OPEN_UTC: 14,   // 9:30 AM EST ≈ 14:30 UTC (rounding to 14)

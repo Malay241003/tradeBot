@@ -41,7 +41,7 @@ const PROP_FIRM = {
 };
 
 const NUM_SIMULATIONS = 5000;
-const TRADES_PER_SIMULATION = 21; // Accurately represents ~10.5 trades per month in a 60-day period
+// TRADES_PER_SIMULATION will be calculated dynamically based on total trades
 
 let allTrades = [];
 
@@ -77,13 +77,8 @@ function loadCSV(filePath, assetClass, direction) {
                 let grossR = parseFloat(row.GrossR || row.R);
                 if (isNaN(grossR)) return;
 
-                // Skip weekend entries (bot won't open new positions on Sat/Sun)
-                // Blueberry allows weekend *holding*, but we choose not to *enter* on weekends
-                const entryDate = new Date(parseInt(row.EntryTime));
-                const dayOfWeek = entryDate.getUTCDay(); // 0 is Sunday, 6 is Saturday
-                if (dayOfWeek === 0 || dayOfWeek === 6) {
-                    return; // Skip weekend entries for better trade quality
-                }
+                // Note: Weekend filtering removed. Crypto trades 24/7, so weekend entries
+                // are valid. Stock backtester already excludes weekend candles.
 
                 trades.push({
                     Pair: row.Pair,
@@ -134,6 +129,14 @@ async function main() {
         console.error("No trades loaded. Exiting.");
         return;
     }
+
+    // Calculate accurate trade frequency based on the historical window
+    // Binance history goes from Jan 1, 2018. Stocks roughly the same.
+    // Total months = ~85 months (as of Feb 2025). Let's be conservative and use 73 months (6 years).
+    const estimatedTotalMonths = 73;
+    const tradesPerMonth = allTrades.length / estimatedTotalMonths;
+    const TRADES_PER_SIMULATION = Math.floor(tradesPerMonth * 2); // 60 days
+    console.log(`\nDynamic Rate: Simulating ${TRADES_PER_SIMULATION} trades per 60-day challenge window.`);
 
     console.log(`\nRunning ${NUM_SIMULATIONS} Monte Carlo prop firm simulations...`);
 

@@ -73,3 +73,10 @@ tp_comparison/
 
 # Scratch/temp verification scripts
 verify_bot.mjs
+
+# YouTube analysis files
+Here is the line-by-line transcript.txt
+Yt_images/
+
+# Gemini agent artifacts
+.gemini/

@@ -4,18 +4,17 @@ A quantitative trading bot and backtesting engine built in Node.js. Uses technic
 
 ## ✨ Key Features
 
-- **Multi-asset universe:** 18 crypto long pairs, 13 crypto short pairs, 10 US stocks (TSLA, NVDA, AAPL, etc.)
-- **Market data** via Binance (Crypto) and TwelveData (Stocks) adapters with local JSON cache
+- **Multi-asset universe:** 30 crypto long, 14 crypto short, 24 US stocks
+- **Hybrid live bot:** Binance WebSocket (crypto, instant) + TwelveData REST (stocks, dual-key rotation)
 - **Full historical backtesting** from 2018 to present with institutional-grade friction (spread, slippage, funding)
 - **Walk-forward validation** per pair (sliding train/test windows)
 - **Directional strategy separation** — decoupled Long & Short logic with independent configs
 - **Screening & portfolio pipeline** — statistical screening, risk modeling, walk-forward portfolio optimization
-- **Combined Prop Firm Simulator** — Monte Carlo simulation of Blueberry Funded 1-Step challenge with all 15 rules enforced
+- **Combined Prop Firm Simulator** — Monte Carlo simulation of Blueberry Funded 1-Step challenge with all rules enforced
 - **Monte Carlo V2 risk engine** — 4 layers: IID, Block Bootstrap, Correlation-Preserving, Stress Injection
 - **5-year compounding projection** — 3 scenarios × 5,000 simulations
 - **Fat-tail analytics** — MFE/MAE analysis, TP capture efficiency, bell curve overlays
 - **Jupyter notebooks** for visualization (equity curves, MC fan charts, compounding projections)
-- **Live paper trading bot** (planned) — real-time signal execution on CoinDCX with prop firm rule enforcement
 
 ---
 
@@ -24,44 +23,54 @@ A quantitative trading bot and backtesting engine built in Node.js. Uses technic
 ```
 tradeBot/
 ├── bot/                          # Live trading module
-│   ├── main.js                   # Bot entry point (15-min scan loop)
-│   ├── coindcx.js                # CoinDCX API client (HMAC auth)
+│   ├── main.js                   # Legacy entry point (stub)
 │   ├── binance.js                # Binance candle data fetcher + cache
 │   ├── universe.js               # Dynamic universe builder
 │   ├── adapters/                 # Data source router (Binance/TwelveData)
 │   │   ├── index.js              # Unified getCandles() dispatcher
-│   │   └── twelvedata.js         # TwelveData adapter (stocks/forex)
-│   └── universes/                # Asset universe definitions
-│       ├── crypto_long.js        # 18 crypto pairs (long direction)
-│       ├── crypto_short.js       # 13 crypto pairs (short direction)
-│       └── stocks.js             # 10 US stocks + S&P 100 list
+│   │   └── twelvedata.js         # TwelveData adapter (stocks)
+│   ├── universes/                # Asset universe definitions
+│   │   ├── crypto_long.js        # 30 crypto pairs (long direction)
+│   │   ├── crypto_short.js       # 14 crypto pairs (short direction)
+│   │   └── stocks_long.js        # 24 US stocks
+│   └── live/                     # Live paper trading bot
+│       ├── main.js               # Bot entry point (WS + REST hybrid)
+│       ├── config.js             # Blueberry Funded rules + strategy config
+│       ├── wsCandles.js          # Binance WebSocket candle store
+│       ├── liveCandles.js        # Unified candle fetcher (WS/REST routing)
+│       ├── scanner.js            # Signal scanner (crypto + stocks)
+│       ├── signalEngine.js       # Entry signal detection (shared logic)
+│       ├── riskGate.js           # Pre-trade rule enforcement (8 checks)
+│       ├── paperExec.js          # Virtual order execution
+│       ├── positionManager.js    # Open position monitoring (SL/TP/trail)
+│       ├── state.js              # Persistent state (PostgreSQL/JSON)
+│       ├── dashboard.js          # Console dashboard renderer
+│       └── db.js                 # PostgreSQL adapter (Render deployment)
 │
 ├── backtest/                     # Crypto backtesting engine
-│   ├── run.js                    # Main backtest runner
-│   ├── config.js                 # Config (capital, TP_R, fees, prop firm rules)
+│   ├── run.js                    # Main backtest runner (--direction=long|short)
+│   ├── config.js                 # Config (TP_R, fees, prop firm rules)
 │   ├── engine.js                 # Core engine (signal → trade simulation)
 │   ├── propFirmSim.js            # Per-strategy prop firm simulator
 │   ├── walkForward.js            # Walk-forward validation engine
-│   ├── metrics.js                # Performance metrics calculator
-│   └── (..MC, equity, export)    # Monte Carlo, equity curves, CSV exporters
+│   └── metrics.js                # Performance metrics calculator
 │
 ├── backtest_us_stocks/           # US stocks backtesting engine
 │   ├── run.js                    # Stocks backtest runner
 │   └── config.js                 # Stocks-specific config
 │
 ├── shared/                       # Shared strategy logic (crypto)
-│   ├── entry.js                  # Entry signals (volatility, rejection, failure patterns)
-│   ├── precomputeIndicators.js   # Technical indicator computation
+│   ├── entry.js                  # Entry signals (volatility, rejection, failure)
+│   ├── precomputeIndicators.js   # Technical indicator computation (EMA, ATR, ADX)
 │   ├── orderBookTrigger.js       # Liquidation proxy triggers
-│   ├── entryDiagnostics.js       # Entry signal quality tracking
 │   └── utils.js                  # Symbol conversion utilities
 │
 ├── shared_us_stocks/             # Shared strategy logic (stocks)
 │
 ├── scripts/                      # Crypto screening & portfolio pipeline
 │   ├── screen_universe.js        # Statistical screening
-│   ├── portfolioOptimizer.js     # Portfolio optimization
-│   └── (..validators, fetchers)
+│   ├── fetchTop400BinanceUniverse.js  # Universe fetcher
+│   └── filter_expanded_universe.js    # Universe filter
 │
 ├── scripts_us_stocks/            # US stocks screening pipeline
 │
@@ -99,19 +108,16 @@ cd tradeBot
 npm install
 ```
 
-### 2. Environment Variables (live trading only)
+### 2. Environment Variables
 
 Create `.env` in the project root:
 
 ```env
-BINANCE_API_KEY=your_binance_api_key
-BINANCE_SECRET=your_binance_secret
-TWELVEDATA_API_KEY=your_twelvedata_api_key
-COINDCX_KEY=your_coindcx_api_key
-COINDCX_SECRET=your_coindcx_secret
+TWELVEDATA_API_KEY_1=your_primary_twelvedata_key
+TWELVEDATA_API_KEY_2=your_secondary_twelvedata_key
 ```
 
-> ⚠️ **Not required for backtesting.** Backtests use public Binance/TwelveData candle data.
+> ⚠️ **Not required for backtesting.** Backtests use public Binance candle data. TwelveData keys are only needed for live US stock scanning.
 
 ---
 
@@ -120,7 +126,8 @@ COINDCX_SECRET=your_coindcx_secret
 ### Run Crypto Backtest
 
 ```bash
-node backtest/run.js
+node backtest/run.js --direction=long
+node backtest/run.js --direction=short
 ```
 
 Runs the full pipeline: universe build → data fetch → backtest → walk-forward → Monte Carlo → analytics → CSV/JSON export.
@@ -137,35 +144,38 @@ node backtest_us_stocks/run.js
 node combinedPropFirmSim.js
 ```
 
-Runs 5,000 Monte Carlo simulations of a Blueberry Funded 1-Step challenge ($5,000 account) using pooled trades from crypto long + crypto short + US stocks long. Enforces all 15 Blueberry Funded rules including:
+Runs 5,000 Monte Carlo simulations of a Blueberry Funded 1-Step challenge ($5,000 account) using 1,200 pooled trades from crypto long + crypto short + US stocks long. Enforces all Blueberry Funded rules:
 - 10% profit target, 6% static max DD, 4% daily DD (higher-of)
 - Crypto 1:2 / Stocks 1:10 leverage caps
 - Lot size restrictions ($5k tier: BTC 0.05, ETH 2.0, SOL 2.0)
 - 3.5% daily DD hard stop buffer
-- No weekend entries, no martingale, no position stacking (4/7)
+- No martingale, no position stacking (4/7)
 
-**Latest result: 72.68% pass rate** (3,634 / 5,000 simulations passed)
+**Latest result: 31.06% pass rate** (1,553 / 5,000 simulations)
 
 ### Run Live Paper Trading Bot
 
 ```bash
-npm run live
+node bot/live/main.js
 ```
 
 Starts the Blueberry Funded 1-Step paper trading bot:
-- Scans 42 pairs every 15 minutes (18 crypto long + 14 crypto short + 10 US stocks long)
-- Enforces all 15 Blueberry Funded rules (daily DD, static DD, leverage, lot limits, etc.)
+- **Crypto:** Binance WebSocket — instant scan on 15m candle close (43 symbols, 86 streams)
+- **Stocks:** Timer-aligned REST scans via TwelveData with dual-key rotation (24 symbols)
+- Enforces all Blueberry Funded rules (daily DD, static DD, leverage, lot limits, anti-martingale)
 - Virtual $5,000 balance, targets $5,500 (10% profit)
 - Logs to PostgreSQL (Render) or JSON files (local)
-- US stocks only scanned during market hours (saves TwelveData credits)
+- US stocks only scanned during market hours (14:30-21:00 UTC)
+- Crypto trades 24/7 including weekends
 
-### Deploy to Render.com (Free)
+### Deploy to Render.com
 
-1. Create a [Neon PostgreSQL](https://neon.tech) database (free) → copy connection string
+1. Create a [Neon PostgreSQL](https://neon.tech) database → copy connection string
 2. Push to GitHub → connect repo on [Render.com](https://render.com)
 3. Set environment variables on Render:
    - `DATABASE_URL` → Neon connection string
-   - `TWELVEDATA_API_KEY` → your TwelveData key
+   - `TWELVEDATA_API_KEY_1` → primary TwelveData key
+   - `TWELVEDATA_API_KEY_2` → secondary TwelveData key
 4. Render auto-deploys from `render.yaml` — bot starts scanning
 
 ---

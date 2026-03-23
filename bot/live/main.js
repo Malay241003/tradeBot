@@ -1,6 +1,8 @@
 // bot/live/main.js
 // Live Paper Trading Bot — Entry Point
-// Scans for signals every 15 minutes, enforces Blueberry Funded rules
+// Hybrid architecture:
+//   • Crypto: WebSocket kline streams → instant scan on candle close
+//   • Stocks: Timer-aligned REST scans (TwelveData, every 15 min)
 // Includes HTTP server + self-ping to prevent Render free tier from sleeping
 
 import 'dotenv/config';
@@ -13,6 +15,7 @@ import * as riskGate from './riskGate.js';
 import { enterPosition } from './paperExec.js';
 import { checkAllPositions } from './positionManager.js';
 import { render } from './dashboard.js';
+import * as wsCandles from './wsCandles.js';
 
 // ═══════════════════════════════════════
 // UNIVERSE DEFINITION
@@ -30,6 +33,22 @@ function buildScanList() {
 }
 
 const SCAN_LIST = buildScanList();
+
+// Build lookup: Binance symbol → [ { pair, direction } ]
+// A symbol like BTCUSDT can appear in both long and short lists
+const CRYPTO_SYMBOL_MAP = new Map();
+for (const item of SCAN_LIST) {
+    if (item.assetClass !== 'crypto') continue;
+    const symbol = item.pair.replace('B-', '');
+    if (!CRYPTO_SYMBOL_MAP.has(symbol)) CRYPTO_SYMBOL_MAP.set(symbol, []);
+    CRYPTO_SYMBOL_MAP.get(symbol).push({ pair: item.pair, direction: item.direction });
+}
+
+// Deduplicated Binance symbols for WS subscription
+const ALL_CRYPTO_SYMBOLS = [...CRYPTO_SYMBOL_MAP.keys()];
+
+// Stock-only scan list (for timer-based scans with dual-key rotation)
+const STOCK_SCAN_LIST = SCAN_LIST.filter(item => item.assetClass === 'stocks');
 
 // ═══════════════════════════════════════
 // HTTP SERVER (keeps Render free tier awake)
@@ -51,6 +70,8 @@ function startHttpServer() {
                 balance: `$${balance}`,
                 trades,
                 scans,
+                wsConnected: true,
+                cryptoSymbols: ALL_CRYPTO_SYMBOLS.length,
                 uptime: process.uptime().toFixed(0) + 's',
                 timestamp: new Date().toISOString(),
             }));
@@ -87,9 +108,106 @@ function startSelfPing() {
 }
 
 // ═══════════════════════════════════════
-// MAIN SCAN CYCLE
+// WEBSOCKET-DRIVEN CRYPTO SCAN
 // ═══════════════════════════════════════
-async function runScanCycle(state) {
+
+/**
+ * Queues the scan to avoid concurrent state mutation race conditions
+ * when multiple candles close simultaneously.
+ */
+const cryptoScanQueue = [];
+let isProcessingCryptoQueue = false;
+
+async function processCryptoQueue(state) {
+    if (isProcessingCryptoQueue) return;
+    isProcessingCryptoQueue = true;
+
+    // Check positions ONCE per batch of closed candles to avoid redundant checks
+    if (cryptoScanQueue.length > 0 && state.status === 'ACTIVE') {
+        await handleDayRollover(state);
+        await checkAllPositions(state);
+    }
+
+    while (cryptoScanQueue.length > 0) {
+        const symbol = cryptoScanQueue.shift();
+
+        if (state.status !== 'ACTIVE') continue;
+
+        const entries = CRYPTO_SYMBOL_MAP.get(symbol);
+        if (!entries) continue;
+
+        let signalsFound = 0;
+        let signalsBlocked = 0;
+        let signalsEntered = 0;
+        const scanDetails = [];
+
+        for (const { pair, direction } of entries) {
+            try {
+                const signal = await scanPair(pair, direction, 'crypto');
+                if (!signal) continue;
+                signalsFound++;
+
+                const approval = riskGate.evaluate(signal, state);
+
+                if (!approval.allowed) {
+                    signalsBlocked++;
+                    scanDetails.push({ pair, direction, assetClass: 'crypto', result: 'BLOCKED', reason: approval.reason });
+                    console.log(`  ⛔ ${pair} ${direction}: ${approval.reason}`);
+                    continue;
+                }
+
+                enterPosition(signal, approval, state);
+                signalsEntered++;
+                scanDetails.push({
+                    pair, direction, assetClass: 'crypto', result: 'ENTERED',
+                    entryPrice: signal.entryPrice, sl: signal.sl, tp: signal.tp,
+                    risk: approval.riskAmount, adjustments: approval.adjustments,
+                });
+            } catch (err) {
+                console.error(`  [ERROR] ${pair} ${direction}:`, err.message);
+            }
+        }
+
+        if (signalsFound > 0) {
+            state.totalScans++;
+            await appendScanLog({
+                scan: state.totalScans,
+                source: 'WS',
+                symbol,
+                signalsFound, signalsBlocked, signalsEntered,
+                openPositions: state.openPositions.length,
+                balance: state.balance,
+                details: scanDetails,
+            });
+
+            render(state);
+            await saveState(state);
+
+            console.log(`[WS-SCAN] ${symbol}: Found: ${signalsFound} | Blocked: ${signalsBlocked} | Entered: ${signalsEntered}`);
+        }
+    }
+
+    isProcessingCryptoQueue = false;
+}
+
+function onCryptoCandleClosed({ symbol }, state) {
+    if (state.status !== 'ACTIVE') return;
+    cryptoScanQueue.push(symbol);
+    processCryptoQueue(state).catch(err => {
+        console.error(`[WS-QUEUE] Error processing queue:`, err.message);
+        isProcessingCryptoQueue = false;
+    });
+}
+
+// ═══════════════════════════════════════
+// TIMER-DRIVEN STOCK + POSITION SCAN
+// ═══════════════════════════════════════
+
+/**
+ * Timer-aligned scan for stocks only + full position check for all assets.
+ * Runs every 15 minutes at :00:10, :15:10, :30:10, :45:10
+ */
+async function runStockScanCycle(state) {
     if (state.status !== 'ACTIVE') {
         render(state);
         console.log(`[BOT] Challenge is ${state.status}. Bot paused.`);
@@ -98,7 +216,9 @@ async function runScanCycle(state) {
 
     await handleDayRollover(state);
 
-    console.log(`\n[BOT] === SCAN ${new Date().toLocaleTimeString()} ===`);
+    console.log(`\n[BOT] === STOCK/POSITION SCAN ${new Date().toLocaleTimeString()} ===`);
+
+    // Check ALL open positions (crypto + stocks)
     console.log(`[BOT] Checking ${state.openPositions.length} open positions...`);
     await checkAllPositions(state);
 
@@ -107,14 +227,20 @@ async function runScanCycle(state) {
         return;
     }
 
+    // Scan stocks only (crypto handled by WebSocket events)
+    if (!isUSMarketOpen()) {
+        console.log(`[BOT] US market closed — skipping stock scan.`);
+        render(state);
+        await saveState(state);
+        return;
+    }
+
     let signalsFound = 0;
     let signalsBlocked = 0;
     let signalsEntered = 0;
     const scanDetails = [];
 
-    for (const { pair, direction, assetClass } of SCAN_LIST) {
-        if (assetClass === 'stocks' && !isUSMarketOpen()) continue;
-
+    for (const { pair, direction, assetClass } of STOCK_SCAN_LIST) {
         try {
             const signal = await scanPair(pair, direction, assetClass);
             if (!signal) continue;
@@ -144,6 +270,7 @@ async function runScanCycle(state) {
     state.totalScans++;
     await appendScanLog({
         scan: state.totalScans,
+        source: 'TIMER',
         signalsFound, signalsBlocked, signalsEntered,
         openPositions: state.openPositions.length,
         balance: state.balance,
@@ -153,7 +280,7 @@ async function runScanCycle(state) {
     render(state);
     await saveState(state);
 
-    console.log(`[BOT] Scan complete. Found: ${signalsFound} | Blocked: ${signalsBlocked} | Entered: ${signalsEntered}`);
+    console.log(`[BOT] Stock scan complete. Found: ${signalsFound} | Blocked: ${signalsBlocked} | Entered: ${signalsEntered}`);
 }
 
 // ═══════════════════════════════════════
@@ -163,6 +290,7 @@ async function main() {
     console.log('');
     console.log('══════════════════════════════════════════════════════');
     console.log('  🚀 BLUEBERRY FUNDED PAPER TRADING BOT');
+    console.log('  ⚡ WebSocket + REST Hybrid Architecture');
     console.log(`  Environment: ${process.env.RENDER ? 'RENDER' : 'LOCAL'}`);
     console.log('══════════════════════════════════════════════════════');
     console.log('');
@@ -172,8 +300,8 @@ async function main() {
     console.log(`[BOT] Database: ${dbOk ? '✅ PostgreSQL connected' : '⚠️  JSON fallback mode'}`);
 
     console.log(`[BOT] Universe: ${CRYPTO_LONG.length} crypto long + ${CRYPTO_SHORT.length} crypto short + ${STOCKS_LONG.length} stocks long`);
+    console.log(`[BOT] Crypto symbols (deduplicated): ${ALL_CRYPTO_SYMBOLS.length}`);
     console.log(`[BOT] Total scan pairs: ${SCAN_LIST.length}`);
-    console.log(`[BOT] Scan interval: ${LIVE_CONFIG.SCAN_INTERVAL_MS / 60000} minutes`);
     console.log('');
 
     // Start HTTP server (needed for Render free tier)
@@ -188,26 +316,47 @@ async function main() {
 
     render(state);
 
-    // Run first scan immediately
-    await runScanCycle(state);
+    // ─── PHASE 1: Boot WebSocket candle store ─────────────
+    console.log(`[BOT] Phase 1: Booting WebSocket candle store for ${ALL_CRYPTO_SYMBOLS.length} crypto symbols...`);
+    await wsCandles.boot(ALL_CRYPTO_SYMBOLS);
 
-    // Schedule scans aligned to candle close times (:00:10, :15:10, :30:10, :45:10)
+    // ─── PHASE 2: Subscribe to candle close events ─────────
+    console.log(`[BOT] Phase 2: Subscribing to WebSocket candle close events...`);
+    wsCandles.onCandleClosed((event) => {
+        // Queue the candle for processing (avoids concurrent execution races)
+        onCryptoCandleClosed(event, state);
+    });
+
+    // ─── PHASE 3: Run initial stock scan + position check ──
+    console.log(`[BOT] Phase 3: Running initial stock scan + position check...`);
+    await runStockScanCycle(state);
+
+    // ─── PHASE 4: Schedule timer for stocks + positions ────
+    console.log(`[BOT] Phase 4: Scheduling timer for stock scans + position checks...`);
     scheduleCandleAligned(state);
+
+    console.log('');
+    console.log('══════════════════════════════════════════════════════');
+    console.log('  ✅ Bot fully started!');
+    console.log('  🔌 Crypto: Binance WebSocket (instant on candle close)');
+    console.log(`  ⏱️  Stocks: Timer + dual-key rotation (${STOCKS_LONG.length} symbols)`);
+    console.log('══════════════════════════════════════════════════════');
+    console.log('');
 }
 
 /**
  * Align scan timer to 15m candle close + 10 seconds
- * Candles close at :00, :15, :30, :45 → we scan at :00:10, :15:10, :30:10, :45:10
+ * Now only used for stock scans + position management
  */
 function scheduleCandleAligned(state) {
     const OFFSET_MS = 10 * 1000;  // 10 seconds after candle close
-    const INTERVAL = 15 * 60 * 1000; // 15 minutes (conserves TwelveData credits)
+    const INTERVAL = 15 * 60 * 1000; // 15 minutes
 
     function msUntilNextCandle() {
         const now = Date.now();
-        const elapsed = now % INTERVAL;       // ms since last :00/:15/:30/:45
-        const nextClose = INTERVAL - elapsed;  // ms until next candle close
-        return nextClose + OFFSET_MS;           // + 10s buffer
+        const elapsed = now % INTERVAL;
+        const nextClose = INTERVAL - elapsed;
+        return nextClose + OFFSET_MS;
     }
 
     function scheduleNext() {
@@ -215,11 +364,11 @@ function scheduleCandleAligned(state) {
         const nextTime = new Date(Date.now() + waitMs);
         const istTime = nextTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
         const waitMin = (waitMs / 60000).toFixed(1);
-        console.log(`[BOT] Next scan aligned to ${istTime} IST (in ${waitMin} min)`);
+        console.log(`[BOT] Next stock/position scan at ${istTime} IST (in ${waitMin} min)`);
 
         setTimeout(async () => {
-            await runScanCycle(state);
-            scheduleNext(); // Reschedule for the next candle
+            await runStockScanCycle(state);
+            scheduleNext();
         }, waitMs);
     }
 
@@ -228,6 +377,7 @@ function scheduleCandleAligned(state) {
 
 process.on('SIGINT', () => {
     console.log('\n[BOT] Shutting down gracefully...');
+    wsCandles.shutdown();
     process.exit(0);
 });
 

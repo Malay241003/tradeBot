@@ -1,23 +1,14 @@
 // bot/live/scanner.js
 // Fetches live candle data and checks for entry signals
+// Crypto: reads from WebSocket in-memory store (instant)
+// Stocks: reads from REST + TwelveData
 
-import { getLiveCandles } from './liveCandles.js';
-import { getCandles } from '../adapters/index.js';
+import { getUnifiedCandles } from './liveCandles.js';
 import { precomputeIndicators } from '../../shared/precomputeIndicators.js';
 import { checkSignal } from './signalEngine.js';
 import { LIVE_CONFIG } from './config.js';
 
 const MIN_CANDLES_15M = 100;
-
-// Use live fetcher on Render (no disk), full adapter locally
-const IS_RENDER = !!process.env.RENDER;
-
-async function fetchCandles(symbol, interval, assetClass) {
-    if (IS_RENDER) {
-        return getLiveCandles(symbol, interval, assetClass);
-    }
-    return getCandles(symbol, interval, assetClass);
-}
 
 /**
  * Scan a single pair for entry signals
@@ -27,8 +18,8 @@ export async function scanPair(pair, direction, assetClass) {
     const symbol = assetClass === 'crypto' ? pair.replace('B-', '') : pair;
 
     try {
-        const candles15m = await fetchCandles(symbol, '15m', assetClass);
-        const candles1h = await fetchCandles(symbol, '1h', assetClass);
+        const candles15m = await getUnifiedCandles(symbol, '15m', assetClass);
+        const candles1h = await getUnifiedCandles(symbol, '1h', assetClass);
 
         if (!candles15m || candles15m.length < MIN_CANDLES_15M) return null;
         if (!candles1h || candles1h.length < 50) return null;
@@ -72,9 +63,13 @@ export async function scanPair(pair, direction, assetClass) {
  */
 export function isUSMarketOpen() {
     const d = new Date();
+    const day = d.getUTCDay();
     const hour = d.getUTCHours();
     const min = d.getUTCMinutes();
     
+    // Weekend check (0 = Sunday, 6 = Saturday)
+    if (day === 0 || day === 6) return false;
+
     // Core hours: 14:30 UTC to 21:00 UTC (9:30 AM to 4:00 PM EST)
     if (hour < LIVE_CONFIG.US_MARKET_OPEN_UTC) return false;
     if (hour === LIVE_CONFIG.US_MARKET_OPEN_UTC && min < 30) return false;
