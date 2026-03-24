@@ -136,6 +136,8 @@ async function processCryptoQueue(state) {
         const entries = CRYPTO_SYMBOL_MAP.get(symbol);
         if (!entries) continue;
 
+        state.totalScans++;
+
         let signalsFound = 0;
         let signalsBlocked = 0;
         let signalsEntered = 0;
@@ -169,7 +171,6 @@ async function processCryptoQueue(state) {
         }
 
         if (signalsFound > 0) {
-            state.totalScans++;
             await appendScanLog({
                 scan: state.totalScans,
                 source: 'WS',
@@ -181,10 +182,10 @@ async function processCryptoQueue(state) {
             });
 
             render(state);
-            await saveState(state);
-
             console.log(`[WS-SCAN] ${symbol}: Found: ${signalsFound} | Blocked: ${signalsBlocked} | Entered: ${signalsEntered}`);
         }
+
+        await saveState(state);
     }
 
     isProcessingCryptoQueue = false;
@@ -228,6 +229,8 @@ async function runStockScanCycle(state) {
     }
 
     // Scan stocks only (crypto handled by WebSocket events)
+    state.totalScans++;
+
     if (!isUSMarketOpen()) {
         console.log(`[BOT] US market closed — skipping stock scan.`);
         render(state);
